@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SlidersHorizontal, Search, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 type VisitStatus = "pending" | "accepted" | "rejected";
 
@@ -44,6 +44,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function VisitRequestsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [visits, setVisits] = useState<VisitRequest[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -164,10 +165,16 @@ export default function VisitRequestsPage() {
                 const status = getStatusLabel(visit.status);
                 return (
                   <TableRow key={visit.id} className="hover:bg-gray-50">
-                    <TableCell className="text-center font-semibold">
+                    <TableCell
+                      className="text-center font-semibold"
+                      onClick={() => router.push(`${pathname}/${visit.id}`)}
+                    >
                       {visit.id}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell
+                      className="text-right"
+                      onClick={() => router.push(`${pathname}/${visit.id}`)}
+                    >
                       {visit.visiter_name}
                     </TableCell>
                     <TableCell className="text-center">

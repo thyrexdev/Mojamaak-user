@@ -79,7 +79,7 @@ export default function ComplexAdminDetailsPage() {
           <Button
             variant="outline"
             onClick={() =>
-              router.push("/dashboard/complex-admin/complex-admins")
+              router.back()
             }
           >
             رجوع للقائمة

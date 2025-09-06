@@ -36,7 +36,6 @@ const menuItems = [
   { href: "/companies", label: "إدارة جهات الصيانة", icon: FactoryIcon },
   { href: "/maintenance", label: "إدارة طلبات الصيانة", icon: HeadphonesIcon },
   { href: "/visits", label: "إدارة طلبات الزيارة", icon: Globe },
-  { href: "/messages", label: "إدارة الرسائل الواردة", icon: MessageSquare },
   { href: "/users", label: "إدارة المستخدمين", icon: User },
   { href: "/complex-admins", label: "إدارة الإداريين", icon: User2 },
   { href: "/invitations", label: "إدارة الدعوات", icon: IdCard },

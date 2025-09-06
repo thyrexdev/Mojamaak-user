@@ -1,39 +1,85 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { usePathname, useRouter } from "next/navigation";
+
+// Simple Modal Component
+function Modal({ open, onClose, onAccept, onCancel }: any) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg w-80 space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900">اختر الإجراء</h2>
+        <p className="text-gray-600">هل تريد قبول الدعوة أو إلغاؤها؟</p>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onCancel}>إلغاء</Button>
+          <Button onClick={onAccept}>قبول</Button>
+        </div>
+        <Button variant="ghost" className="absolute top-2 right-2" onClick={onClose}>✕</Button>
+      </div>
+    </div>
+  );
+}
 
 export default function InvitationsPage() {
-  const [invitations, setInvitations] = useState<any[]>([])
-  const [meta, setMeta] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
+  const router = useRouter();
+  const pathname = usePathname();
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [meta, setMeta] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+
+  // Modal state
+  const [selectedInvitation, setSelectedInvitation] = useState<any>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const fetchInvitations = async (page: number) => {
     try {
-      setLoading(true)
-      const token = localStorage.getItem("token")
+      setLoading(true);
+      const token = localStorage.getItem("token");
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/invitations?per_page=5&page=${page}`,
         { headers: { Authorization: `Bearer ${token}` } }
-      )
-      const json = await res.json()
-      setInvitations(json.data.invitations)
-      setMeta(json.data.meta)
+      );
+      const json = await res.json();
+      setInvitations(json.data.invitations);
+      setMeta(json.data.meta);
     } catch (err) {
-      console.error("خطأ في تحميل الدعوات:", err)
+      console.error("خطأ في تحميل الدعوات:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchInvitations(page)
-  }, [page])
+    fetchInvitations(page);
+  }, [page]);
 
-  if (loading) return <div className="p-6">جاري التحميل...</div>
+  const handleRowClick = (inv: any) => {
+    setSelectedInvitation(inv);
+    setModalOpen(true);
+  };
+
+  const handleAccept = () => {
+    if (selectedInvitation) {
+      router.push(`${pathname}/${selectedInvitation.id}/accept`);
+      setModalOpen(false);
+      setSelectedInvitation(null);
+    }
+  };
+
+  const handleCancel = () => {
+    if (selectedInvitation) {
+      router.push(`${pathname}/${selectedInvitation.id}/cancel`);
+      setModalOpen(false);
+      setSelectedInvitation(null);
+    }
+  };
+
+  if (loading) return <div className="p-6">جاري التحميل...</div>;
 
   return (
     <div className="p-6 font-arabic" dir="rtl">
@@ -42,9 +88,7 @@ export default function InvitationsPage() {
           <CardTitle className="text-lg font-semibold text-gray-900">
             إدارة الدعوات
           </CardTitle>
-          <p className="text-sm text-gray-500">
-            عرض وتتبع الدعوات المرسلة للإداريين.
-          </p>
+          <p className="text-sm text-gray-500">عرض وتتبع الدعوات المرسلة للإداريين.</p>
         </CardHeader>
 
         <CardContent className="p-6 pt-0">
@@ -60,7 +104,7 @@ export default function InvitationsPage() {
             </TableHeader>
             <TableBody>
               {invitations.map((inv) => (
-                <TableRow key={inv.id}>
+                <TableRow key={inv.id} className="cursor-pointer" onClick={() => handleRowClick(inv)}>
                   <TableCell className="text-right">{inv.email}</TableCell>
                   <TableCell className="text-right">
                     <span
@@ -75,15 +119,9 @@ export default function InvitationsPage() {
                       {inv.status}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right">
-                    {inv.residential_complex?.name || "-"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {new Date(inv.created_at).toLocaleString("ar-EG")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {new Date(inv.expires_at).toLocaleString("ar-EG")}
-                  </TableCell>
+                  <TableCell className="text-right">{inv.residential_complex?.name || "-"}</TableCell>
+                  <TableCell className="text-right">{new Date(inv.created_at).toLocaleString("ar-EG")}</TableCell>
+                  <TableCell className="text-right">{new Date(inv.expires_at).toLocaleString("ar-EG")}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -114,6 +152,13 @@ export default function InvitationsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onAccept={handleAccept}
+        onCancel={handleCancel}
+      />
     </div>
-  )
+  );
 }

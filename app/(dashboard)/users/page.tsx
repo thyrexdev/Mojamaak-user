@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -9,6 +9,7 @@ import { Plus, Edit, Trash2, Search, SlidersHorizontal } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
 export default function UsersPage() {
+  const pathname = usePathname()
   const router = useRouter()
   const [users, setUsers] = useState<any[]>([])
   const [meta, setMeta] = useState<any>(null)
@@ -82,7 +83,7 @@ export default function UsersPage() {
             <TableBody>
               {users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="text-right">{user.name}</TableCell>
+                  <TableCell className="text-right" onClick={() => router.push(`${pathname}/${user.id}`)}>{user.name}</TableCell>
                   <TableCell className="text-right">{user.email}</TableCell>
                   <TableCell className="text-right">{user.phone}</TableCell>
                   <TableCell className="text-right">

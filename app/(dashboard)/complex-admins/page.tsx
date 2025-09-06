@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import Link from "next/link";
 
 export default function ComplexAdminsPage() {
   const router = useRouter();
+  const pathname = usePathname()
   const [admins, setAdmins] = useState<any[]>([]);
   const [meta, setMeta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -105,27 +106,27 @@ export default function ComplexAdminsPage() {
             </TableHeader>
             <TableBody>
               {admins.map((admin) => (
-                <TableRow key={admin.id}>
-                  <TableCell className="text-right">{admin.name}</TableCell>
-                  <TableCell className="text-right">{admin.email}</TableCell>
-                  <TableCell className="text-right">
-                    {admin.residential_complex?.name}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex justify-center gap-2">
-                      <Button variant="ghost" size="icon">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-500"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                  <TableRow key={admin.id} >
+                    <TableCell className="text-right cursor-pointer" onClick={() => router.push(`${pathname}/${admin.id}`)}>{admin.name}</TableCell>
+                    <TableCell className="text-right">{admin.email}</TableCell>
+                    <TableCell className="text-right" >
+                      {admin.residential_complex?.name}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex justify-center gap-2">
+                        <Button variant="ghost" size="icon">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
               ))}
             </TableBody>
           </Table>
