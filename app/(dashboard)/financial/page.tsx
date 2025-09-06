@@ -108,9 +108,7 @@ export default function FinancialPage() {
       <React.Fragment key={payment.id}>
         <TableRow
           className="cursor-pointer hover:bg-gray-50"
-          onClick={() =>
-            setExpandedId(expandedId === payment.id ? null : payment.id)
-          }
+                onClick={() => router.push(`/financial/${payment.id}`)}
         >
           <TableCell className="text-center font-semibold">{index + 1}</TableCell>
           <TableCell className="text-center">{payment.user?.name}</TableCell>

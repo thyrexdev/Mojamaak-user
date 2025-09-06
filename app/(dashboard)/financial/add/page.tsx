@@ -12,11 +12,21 @@ import { useEffect, useState } from "react"
 
 export default function AddPaymentPage() {
   const router = useRouter()
-  const [residents, setResidents] = useState([])
+  const [residents, setResidents] = useState<any[]>([])
   const [selectedResidentId, setSelectedResidentId] = useState<string | null>(null)
   const [selectedApartmentId, setSelectedApartmentId] = useState<string | null>(null)
-  const [apartments, setApartments] = useState([])
+  const [apartments, setApartments] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // form states
+  const [totalAmount, setTotalAmount] = useState("")
+  const [paidAmount, setPaidAmount] = useState("")
+  const [remaining, setRemaining] = useState("")
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
+  const [description, setDescription] = useState("")
+  const [status, setStatus] = useState("pending")
+  const [active, setActive] = useState(true)
 
   useEffect(() => {
     const fetchResidents = async () => {
@@ -44,13 +54,47 @@ export default function AddPaymentPage() {
     setApartments(selectedUser?.apartments || [])
   }, [selectedResidentId, residents])
 
-  const handleSave = () => {
-    console.log({
-      selectedResidentId,
-      selectedApartmentId,
-      // You can extend this with form fields (amounts, file, date...)
-    })
-    router.push("/financial")
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const token = localStorage.getItem("token")
+    if (!token) {
+      alert("مفيش توكن! سجل دخول الأول.")
+      return
+    }
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/payments`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: (() => {
+          const form = new FormData()
+          form.append("total_amount", totalAmount)
+          form.append("installment_amount", paidAmount) // عندك مثال اسمه installment_amount
+          form.append("installment_period_from", dateFrom)
+          form.append("installment_period_to", dateTo || dateFrom) // fallback بسيط
+          form.append("description", description || "—")
+          form.append("status", status) // pending, completed, failed
+          form.append("user_id", selectedResidentId || "")
+          if (selectedApartmentId) form.append("apartment_id", selectedApartmentId)
+          form.append("is_active", active ? "1" : "0")
+          return form
+        })(),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`فشل الحفظ: ${res.status} → ${text}`)
+      }
+
+      // لو كله تمام
+      router.push("/financial")
+    } catch (err) {
+      console.error("Error saving payment:", err)
+      alert("حصل خطأ أثناء الحفظ")
+    }
   }
 
   const handleCancel = () => {
@@ -68,7 +112,7 @@ export default function AddPaymentPage() {
 
       <Card className="bg-white shadow-sm max-w-3xl mx-auto">
         <CardContent className="p-6">
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSave}>
             {/* Resident Name */}
             <div className="space-y-2">
               <Label className="text-right block">
@@ -111,63 +155,67 @@ export default function AddPaymentPage() {
 
             {/* Total Amount */}
             <div className="space-y-2">
-              <Label className="text-right block">
-                المبلغ الكلي<span className="text-red-500">*</span>
-              </Label>
-              <Input type="number" placeholder="مثال: 50000" dir="rtl" />
+              <Label className="text-right block">المبلغ الكلي<span className="text-red-500">*</span></Label>
+              <Input type="number" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} dir="rtl" />
             </div>
 
             {/* Paid */}
             <div className="space-y-2">
-              <Label className="text-right block">
-                المبلغ المدفوع<span className="text-red-500">*</span>
-              </Label>
-              <Input type="number" placeholder="مثال: 10000" dir="rtl" />
+              <Label className="text-right block">المبلغ المدفوع<span className="text-red-500">*</span></Label>
+              <Input type="number" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} dir="rtl" />
             </div>
 
             {/* Remaining */}
             <div className="space-y-2">
               <Label className="text-right block">المتبقي</Label>
-              <Input type="number" placeholder="يحسب تلقائياً أو يدويًا" dir="rtl" />
+              <Input type="number" value={remaining} onChange={(e) => setRemaining(e.target.value)} dir="rtl" />
             </div>
 
-            {/* Date */}
+            {/* Date From */}
             <div className="space-y-2">
-              <Label className="text-right block">
-                تاريخ الدفع<span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <Input type="date" className="text-right" dir="rtl" />
-                <CalendarDays className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              </div>
+              <Label className="text-right block">تاريخ بداية الفترة<span className="text-red-500">*</span></Label>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="text-right" />
             </div>
 
-            {/* File Upload */}
-            <div className="border border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary-500 transition-colors">
-              <UploadCloud className="mx-auto h-10 w-10 text-gray-400 mb-3" />
-              <p className="text-sm text-gray-600">
-                اضغط للتحميل أو اسحب المرفقات هنا
-                <br />
-                <span className="text-xs text-gray-500">PDF، PNG، JPG (اختياري)</span>
-              </p>
+            {/* Date To */}
+            <div className="space-y-2">
+              <Label className="text-right block">تاريخ نهاية الفترة</Label>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="text-right" />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label className="text-right block">الوصف</Label>
+              <Input type="text" value={description} onChange={(e) => setDescription(e.target.value)} dir="rtl" />
+            </div>
+
+            {/* Status */}
+            <div className="space-y-2">
+              <Label className="text-right block">الحالة</Label>
+              <Select onValueChange={(value) => setStatus(value)} defaultValue={status}>
+                <SelectTrigger className="text-right">
+                  <SelectValue placeholder="اختر الحالة" />
+                </SelectTrigger>
+                <SelectContent dir="rtl">
+                  <SelectItem value="pending">قيد الانتظار</SelectItem>
+                  <SelectItem value="completed">مكتمل</SelectItem>
+                  <SelectItem value="failed">فشل</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Active Switch */}
             <div className="flex items-center justify-start gap-3">
               <span className="text-sm font-medium text-gray-700">نشط؟</span>
-              <Switch id="active-status" defaultChecked />
+              <Switch id="active-status" checked={active} onCheckedChange={setActive} />
             </div>
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-3 pt-4">
-              <Button
-                variant="outline"
-                onClick={handleCancel}
-                className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent"
-              >
+              <Button type="button" variant="outline" onClick={handleCancel} className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent">
                 إلغاء
               </Button>
-              <Button onClick={handleSave} className="bg-primary-500 hover:bg-primary-600 text-white">
+              <Button type="submit" className="bg-primary-500 hover:bg-primary-600 text-white">
                 حفظ الدفعة
               </Button>
             </div>

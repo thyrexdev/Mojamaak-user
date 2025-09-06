@@ -6,11 +6,64 @@ import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 
+type TranslationItem = {
+  name: string
+  location: string
+  description: string
+}
+
+type Translations = {
+  en?: TranslationItem
+  ar?: TranslationItem
+  ku?: TranslationItem
+}
+
+type Contact = {
+  id: number
+  type: string
+  value: string
+  type_translations?: {
+    en?: string
+    ar?: string
+    ku?: string
+  }
+}
+
+type MaintenanceAdmin = {
+  id: number
+  name: string
+  email: string
+  phone: string
+}
+
+type MaintenanceDepartment = {
+  id: number
+  name: string
+  description: string
+  icon: string
+}
+
+export type Company = {
+  id: number
+  name: string
+  location: string
+  logo: string
+  description: string
+  type: "internal" | "external"
+  maintenance_department?: MaintenanceDepartment
+  maintenance_admins?: MaintenanceAdmin[]
+  contacts?: Contact[]
+  translations?: Translations
+  deleted_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
 export default function CompanyDetailsPage() {
   const { id } = useParams()
-  const [company, setCompany] = useState(null)
+const [company, setCompany] = useState<Company | null>(null)
 
   const fetchCompanyDetails = async () => {
     try {
@@ -39,7 +92,7 @@ export default function CompanyDetailsPage() {
     if (id) fetchCompanyDetails()
   }, [id])
 
-  const ar = company?.translations?.ar || {}
+const ar: TranslationItem | undefined = company?.translations?.ar
 
   return (
     <div className="p-6 font-arabic" dir="rtl">
@@ -59,7 +112,7 @@ export default function CompanyDetailsPage() {
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
           <p className="text-gray-500">الاسم</p>
-          <p className="font-medium text-gray-900">{ar.name}</p>
+          <p className="font-medium text-gray-900">{ar?.name}</p>
         </div>
         <div>
           <p className="text-gray-500">النوع</p>
@@ -73,7 +126,7 @@ export default function CompanyDetailsPage() {
         </div>
         <div>
           <p className="text-gray-500">الموقع</p>
-          <p className="font-medium text-gray-900 whitespace-pre-wrap">{ar.location}</p>
+          <p className="font-medium text-gray-900 whitespace-pre-wrap">{ar?.location}</p>
         </div>
         <div>
           <p className="text-gray-500">القسم</p>
@@ -90,7 +143,7 @@ export default function CompanyDetailsPage() {
       {/* وصف */}
       <div>
         <p className="text-gray-500 text-sm mb-1">الوصف</p>
-        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{ar.description}</p>
+        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{ar?.description}</p>
       </div>
 
       <Separator />
@@ -99,8 +152,8 @@ export default function CompanyDetailsPage() {
       <div>
         <p className="text-gray-500 text-sm mb-1">المسؤولون</p>
         <ul className="space-y-1 list-disc list-inside text-sm text-gray-800">
-          {company.maintenance_admins?.length > 0 ? (
-            company.maintenance_admins.map((admin) => (
+          {(company.maintenance_admins?.length ?? 0) > 0 ? (
+            company.maintenance_admins?.map((admin) => (
               <li key={admin.id}>
                 <span className="font-medium">{admin.name}</span> ({admin.email} - {admin.phone})
               </li>
@@ -117,8 +170,8 @@ export default function CompanyDetailsPage() {
       <div>
         <p className="text-gray-500 text-sm mb-1">بيانات الاتصال</p>
         <ul className="space-y-1 list-disc list-inside text-sm text-gray-800">
-          {company.contacts?.length > 0 ? (
-            company.contacts.map((contact) => (
+          {(company.contacts?.length ?? 0) > 0 ? (
+            company.contacts!.map((contact) => (
               <li key={contact.id}>
                 {contact.type_translations?.ar || contact.type}: {contact.value}
               </li>

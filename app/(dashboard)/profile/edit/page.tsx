@@ -20,7 +20,7 @@ type Profile = {
 export default function EditProfilePage() {
   const router = useRouter()
 
-  // Profile (name/email)
+  // Profile states
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [name, setName] = useState("")
@@ -28,17 +28,17 @@ export default function EditProfilePage() {
   const [profileMsg, setProfileMsg] = useState<string | null>(null)
   const [profileErr, setProfileErr] = useState<string | null>(null)
 
-  // Password
+  // Password states
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword,   setNewPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [pwdSaving, setPwdSaving] = useState(false)
   const [pwdMsg, setPwdMsg] = useState<string | null>(null)
   const [pwdErr, setPwdErr] = useState<string | null>(null)
 
-  // Load current profile
+  // Load profile from API (fallback: localStorage)
   useEffect(() => {
     const run = async () => {
       try {
@@ -49,32 +49,18 @@ export default function EditProfilePage() {
           headers: { Authorization: `Bearer ${token}` },
         })
 
-        if (!res.ok) {
-          const t = await res.text()
-          throw new Error(`فشل جلب البيانات (${res.status}) → ${t}`)
-        }
+        if (!res.ok) throw new Error(`فشل جلب البيانات (${res.status})`)
 
         const json = await res.json()
-        // API shape: { code, message, data: { id, name, email, ... } }
         const data: Profile | undefined = json?.data
         if (data) {
           setName(data.name ?? "")
           setEmail(data.email ?? "")
-          // also refresh localStorage for navbar defaults
-          const admin = { id: data.id, name: data.name, email: data.email, permissions: data.permissions || [] }
-          localStorage.setItem("admin", JSON.stringify(admin))
-        } else {
-          // fallback from localStorage if API returns nothing
-          const cached = localStorage.getItem("admin")
-          if (cached) {
-            const obj = JSON.parse(cached)
-            setName(obj?.name ?? "")
-            setEmail(obj?.email ?? "")
-          }
+          localStorage.setItem("admin", JSON.stringify(data))
         }
-      } catch (e: any) {
+      } catch (e) {
         console.error(e)
-        // fallback to cached values so the form isn’t empty
+        // fallback للـ localStorage
         const cached = localStorage.getItem("admin")
         if (cached) {
           const obj = JSON.parse(cached)
@@ -104,27 +90,15 @@ export default function EditProfilePage() {
       const res = await fetch(`${API_BASE_URL}/api/dashboard/complex-admin/profile`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: form, // form-data per your Postman screenshots
+        body: form,
       })
 
-      if (!res.ok) {
-        const t = await res.text()
-        throw new Error(`فشل التحديث (${res.status}) → ${t}`)
-      }
+      if (!res.ok) throw new Error(`فشل التحديث (${res.status})`)
 
       const json = await res.json()
       const updated: Profile | undefined = json?.data
       if (updated) {
-        // keep localStorage in sync (used by your navbar)
-        localStorage.setItem(
-          "admin",
-          JSON.stringify({
-            id: updated.id,
-            name: updated.name,
-            email: updated.email,
-            permissions: updated.permissions || [],
-          })
-        )
+        localStorage.setItem("admin", JSON.stringify(updated))
       }
       setProfileMsg("تم حفظ البيانات بنجاح")
     } catch (e: any) {
@@ -141,7 +115,7 @@ export default function EditProfilePage() {
     setPwdErr(null)
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setPwdErr("من فضلك املأ جميع حقول كلمة المرور")
+      setPwdErr("من فضلك املأ جميع الحقول")
       return
     }
     if (newPassword !== confirmPassword) {
@@ -164,17 +138,13 @@ export default function EditProfilePage() {
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
-          body: form, // form-data per your Postman screenshot
+          body: form,
         }
       )
 
-      if (!res.ok) {
-        const t = await res.text()
-        throw new Error(`فشل تغيير كلمة المرور (${res.status}) → ${t}`)
-      }
+      if (!res.ok) throw new Error(`فشل تغيير كلمة المرور (${res.status})`)
 
       setPwdMsg("تم تغيير كلمة المرور بنجاح")
-      // clear inputs
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
@@ -199,17 +169,14 @@ export default function EditProfilePage() {
         </CardHeader>
 
         <CardContent className="p-6 pt-0 space-y-10">
-          {/* ====== Section 1: Basic Info (name/email) ====== */}
+          {/* ====== البيانات الأساسية ====== */}
           <div className="space-y-6">
             <h3 className="text-base font-semibold text-gray-900">البيانات الأساسية</h3>
 
             <div className="space-y-2">
-              <Label htmlFor="full-name" className="text-right block">
-                الاسم الكامل<span className="text-red-500">*</span>
-              </Label>
+              <Label htmlFor="full-name">الاسم الكامل</Label>
               <Input
                 id="full-name"
-                placeholder="الاسم"
                 dir="rtl"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -218,52 +185,36 @@ export default function EditProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-right block">
-                البريد الإلكتروني<span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="email"
-                  placeholder="example@domain.com"
-                  className="pl-12 text-right"
-                  dir="rtl"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading || saving}
-                />
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              </div>
+              <Label htmlFor="email">البريد الإلكتروني</Label>
+              <Input
+                id="email"
+                dir="rtl"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading || saving}
+              />
             </div>
 
             {profileMsg && <p className="text-green-600 text-sm">{profileMsg}</p>}
             {profileErr && <p className="text-red-600 text-sm">{profileErr}</p>}
 
             <div className="flex justify-end gap-3 pt-2">
-              <Button
-                variant="outline"
-                onClick={handleCancel}
-                className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent"
-              >
-                إلغاء
-              </Button>
-              <Button onClick={handleSaveProfile} disabled={saving || loading} className="bg-primary-500 hover:bg-primary-600 text-white">
+              <Button variant="outline" onClick={handleCancel}>إلغاء</Button>
+              <Button onClick={handleSaveProfile} disabled={saving || loading}>
                 {saving ? "جارٍ الحفظ..." : "حفظ البيانات"}
               </Button>
             </div>
           </div>
 
-          {/* ====== Section 2: Change Password ====== */}
+          {/* ====== تغيير كلمة المرور ====== */}
           <div className="space-y-6">
             <h3 className="text-base font-semibold text-gray-900">تغيير كلمة المرور</h3>
 
             <div className="space-y-2">
-              <Label htmlFor="current-password" className="text-right block">
-                كلمة المرور الحالية<span className="text-red-500">*</span>
-              </Label>
+              <Label htmlFor="current-password">كلمة المرور الحالية</Label>
               <Input
                 id="current-password"
                 type="password"
-                placeholder="********"
                 dir="rtl"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -272,67 +223,41 @@ export default function EditProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-right block">
-                كلمة المرور الجديدة<span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="********"
-                  className="pl-12 text-right"
-                  dir="rtl"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  disabled={pwdSaving}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 w-8 h-8"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-              </div>
+              <Label htmlFor="password">كلمة المرور الجديدة</Label>
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                dir="rtl"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={pwdSaving}
+              />
+              <Button type="button" variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? <EyeOff /> : <Eye />}
+              </Button>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirm-password" className="text-right block">
-                تأكيد كلمة المرور<span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="confirm-password"
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="********"
-                  className="pl-12 text-right"
-                  dir="rtl"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={pwdSaving}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 w-8 h-8"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-              </div>
+              <Label htmlFor="confirm-password">تأكيد كلمة المرور</Label>
+              <Input
+                id="confirm-password"
+                type={showConfirmPassword ? "text" : "password"}
+                dir="rtl"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={pwdSaving}
+              />
+              <Button type="button" variant="ghost" size="icon" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                {showConfirmPassword ? <EyeOff /> : <Eye />}
+              </Button>
             </div>
 
             {pwdMsg && <p className="text-green-600 text-sm">{pwdMsg}</p>}
             {pwdErr && <p className="text-red-600 text-sm">{pwdErr}</p>}
 
             <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={handleCancel} className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent">
-                إلغاء
-              </Button>
-              <Button onClick={handleChangePassword} disabled={pwdSaving} className="bg-primary-500 hover:bg-primary-600 text-white">
+              <Button variant="outline" onClick={handleCancel}>إلغاء</Button>
+              <Button onClick={handleChangePassword} disabled={pwdSaving}>
                 {pwdSaving ? "جارٍ التعديل..." : "تغيير كلمة المرور"}
               </Button>
             </div>

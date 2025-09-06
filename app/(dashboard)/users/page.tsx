@@ -1,41 +1,58 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Edit, Trash2,Search, SlidersHorizontal} from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Plus, Edit, Trash2, Search, SlidersHorizontal } from "lucide-react"
 import { Input } from "@/components/ui/input"
-
-const users = [
-  { id: 1, name: "أحمد علي", email: "ahmed@example.com", role: "مدير", permissions: ["read", "write", "delete"] },
-  { id: 2, name: "سارة محمد", email: "sara@example.com", role: "مشرف", permissions: ["read"] },
-]
 
 export default function UsersPage() {
   const router = useRouter()
+  const [users, setUsers] = useState<any[]>([])
+  const [meta, setMeta] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
 
-  const handleAddUser = () => router.push("/users/add")
+  const fetchUsers = async (page: number) => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem("token")
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/users?per_page=10&page=${page}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      const json = await res.json()
+      setUsers(json.data.users)
+      setMeta(json.data.meta)
+    } catch (err) {
+      console.error("خطأ في تحميل المستخدمين:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchUsers(page)
+  }, [page])
+
+
+  if (loading) return <div className="p-6">جاري التحميل...</div>
 
   return (
     <div className="p-6 font-arabic" dir="rtl">
       <Card className="bg-white shadow-sm">
-               <CardHeader className="flex flex-row items-center justify-between p-6 pb-4">
+        <CardHeader className="flex flex-row items-center justify-between p-6 pb-4">
           <div>
             <CardTitle className="text-lg font-semibold text-gray-900">إدارة المستخدمين</CardTitle>
             <p className="text-sm text-gray-500">عرض وتعديل صلاحيات المستخدمين.</p>
           </div>
-          <Button
-            onClick={handleAddUser}
-        className="bg-primary-500 text-white hover:bg-primary-600">
-            <Plus className="w-4 h-4" />
-           إضافة مستخدم
-          </Button>
         </CardHeader>
 
-  <CardContent className="p-6 pt-0">
-                       <div className="flex items-center justify-between mb-4 gap-4">
-         <Button
+        <CardContent className="p-6 pt-0">
+          <div className="flex items-center justify-between mb-4 gap-4">
+            <Button
               variant="outline"
               className="flex items-center gap-2 border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent"
             >
@@ -51,12 +68,14 @@ export default function UsersPage() {
               />
             </div>
           </div>
+
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50 text-sm">
-                <TableHead className="text-right text-gray-700 ">الاسم</TableHead>
+                <TableHead className="text-right text-gray-700">الاسم</TableHead>
                 <TableHead className="text-right text-gray-700">البريد الإلكتروني</TableHead>
-                <TableHead className="text-right text-gray-700">الصلاحيات</TableHead>
+                <TableHead className="text-right text-gray-700">رقم الهاتف</TableHead>
+                <TableHead className="text-right text-gray-700">الوحدات</TableHead>
                 <TableHead className="text-center text-gray-700">الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
@@ -65,10 +84,13 @@ export default function UsersPage() {
                 <TableRow key={user.id}>
                   <TableCell className="text-right">{user.name}</TableCell>
                   <TableCell className="text-right">{user.email}</TableCell>
+                  <TableCell className="text-right">{user.phone}</TableCell>
                   <TableCell className="text-right">
-                    {user.permissions.includes("read") && "قراءة "}
-                    {user.permissions.includes("write") && "تعديل "}
-                    {user.permissions.includes("delete") && "حذف "}
+                    {user.apartments.map((apt: any) => (
+                      <div key={apt.id}>
+                        {apt.number} - {apt.building.address}
+                      </div>
+                    ))}
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex justify-center gap-2">
@@ -80,17 +102,30 @@ export default function UsersPage() {
               ))}
             </TableBody>
           </Table>
-                       <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-            <span>الصفحة 1 من 10</span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                السابق
-              </Button>
-              <Button variant="outline" size="sm">
-                التالي
-              </Button>
+
+          {meta && (
+            <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+              <span>الصفحة {meta.current_page} من {meta.total_pages}</span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={!meta.prev_page_url}
+                >
+                  السابق
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={!meta.next_page_url}
+                >
+                  التالي
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

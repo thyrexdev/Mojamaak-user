@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -11,22 +11,47 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { SlidersHorizontal, Search, Trash2 } from "lucide-react"
-import { useRouter } from "next/navigation"
+} from "@/components/ui/table";
+import { SlidersHorizontal, Search, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+type VisitStatus = "pending" | "accepted" | "rejected";
+
+interface VisitRequest {
+  id: number;
+  visiter_name: string;
+  visiter_phone: string;
+  visit_date: string;
+  visit_time: string;
+  status: VisitStatus;
+  description?: string;
+  user?: {
+    id: number;
+    name: string;
+  };
+}
+
+interface VisitsResponse {
+  data: {
+    visit_requests: VisitRequest[];
+    meta: {
+      total_pages: number;
+    };
+  };
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function VisitRequestsPage() {
-  const router = useRouter()
-  const [visits, setVisits] = useState([])
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const router = useRouter();
+  const [visits, setVisits] = useState<VisitRequest[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetchVisits = async () => {
     try {
-      const token = localStorage.getItem("token")
-      if (!token) throw new Error("Aucun token trouvé")
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Aucun token trouvé");
 
       const res = await fetch(
         `${API_BASE_URL}/api/dashboard/complex-admin/visit-requests?page=${page}&per_page=10`,
@@ -35,32 +60,41 @@ export default function VisitRequestsPage() {
             Authorization: `Bearer ${token}`,
           },
         }
-      )
+      );
 
-      if (!res.ok) throw new Error("Erreur lors du chargement des visites")
+      if (!res.ok) throw new Error("Erreur lors du chargement des visites");
 
-      const json = await res.json()
-      setVisits(json.data.visit_requests)
-      setTotalPages(json.data.meta.total_pages)
+      const json = await res.json();
+      setVisits(json.data.visit_requests);
+      setTotalPages(json.data.meta.total_pages);
     } catch (error) {
-      console.error("Erreur chargement visites :", error)
+      console.error("Erreur chargement visites :", error);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchVisits()
-  }, [page])
+    fetchVisits();
+  }, [page]);
 
-  const getStatusLabel = (status) => {
+  const getStatusLabel = (status: VisitStatus) => {
     switch (status) {
       case "accepted":
-        return { label: "مقبول", color: "bg-green-50 text-green-700 border-green-300" }
+        return {
+          label: "مقبول",
+          color: "bg-green-50 text-green-700 border-green-300",
+        };
       case "rejected":
-        return { label: "مرفوض", color: "bg-red-50 text-red-700 border-red-300" }
+        return {
+          label: "مرفوض",
+          color: "bg-red-50 text-red-700 border-red-300",
+        };
       default:
-        return { label: "قيد الانتظار", color: "bg-yellow-50 text-yellow-700 border-yellow-300" }
+        return {
+          label: "قيد الانتظار",
+          color: "bg-yellow-50 text-yellow-700 border-yellow-300",
+        };
     }
-  }
+  };
 
   return (
     <div className="p-6 font-arabic" dir="rtl">
@@ -69,7 +103,9 @@ export default function VisitRequestsPage() {
           <CardTitle className="text-lg font-semibold text-gray-900">
             إدارة طلبات الزيارة
           </CardTitle>
-          <p className="text-sm text-gray-500">جميع طلبات الزيارة المقدمة من السكان</p>
+          <p className="text-sm text-gray-500">
+            جميع طلبات الزيارة المقدمة من السكان
+          </p>
         </CardHeader>
 
         <CardContent className="p-6 pt-0">
@@ -96,28 +132,56 @@ export default function VisitRequestsPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50 text-sm font-semibold">
-                <TableHead className="text-center text-gray-700 w-[60px]">#</TableHead>
-                <TableHead className="text-right text-gray-700">الزائر</TableHead>
-                <TableHead className="text-center text-gray-700">رقم الهاتف</TableHead>
-                <TableHead className="text-center text-gray-700">الساكن</TableHead>
-                <TableHead className="text-center text-gray-700">التاريخ</TableHead>
-                <TableHead className="text-center text-gray-700">الوقت</TableHead>
-                <TableHead className="text-center text-gray-700">الحالة</TableHead>
-                <TableHead className="text-center text-gray-700">الإجراءات</TableHead>
+                <TableHead className="text-center text-gray-700 w-[60px]">
+                  #
+                </TableHead>
+                <TableHead className="text-right text-gray-700">
+                  الزائر
+                </TableHead>
+                <TableHead className="text-center text-gray-700">
+                  رقم الهاتف
+                </TableHead>
+                <TableHead className="text-center text-gray-700">
+                  الساكن
+                </TableHead>
+                <TableHead className="text-center text-gray-700">
+                  التاريخ
+                </TableHead>
+                <TableHead className="text-center text-gray-700">
+                  الوقت
+                </TableHead>
+                <TableHead className="text-center text-gray-700">
+                  الحالة
+                </TableHead>
+                <TableHead className="text-center text-gray-700">
+                  الإجراءات
+                </TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
               {visits.map((visit) => {
-                const status = getStatusLabel(visit.status)
+                const status = getStatusLabel(visit.status);
                 return (
                   <TableRow key={visit.id} className="hover:bg-gray-50">
-                    <TableCell className="text-center font-semibold">{visit.id}</TableCell>
-                    <TableCell className="text-right">{visit.visiter_name}</TableCell>
-                    <TableCell className="text-center">{visit.visiter_phone}</TableCell>
-                    <TableCell className="text-center">{visit.user?.name}</TableCell>
-                    <TableCell className="text-center">{visit.visit_date}</TableCell>
-                    <TableCell className="text-center">{visit.visit_time}</TableCell>
+                    <TableCell className="text-center font-semibold">
+                      {visit.id}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {visit.visiter_name}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {visit.visiter_phone}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {visit.user?.name}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {visit.visit_date}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {visit.visit_time}
+                    </TableCell>
                     <TableCell className="text-center">
                       <span
                         className={`px-2 py-0.5 rounded-full text-xs font-medium border ${status.color}`}
@@ -135,11 +199,10 @@ export default function VisitRequestsPage() {
                         >
                           معاينة
                         </Button>
-            
                       </div>
                     </TableCell>
                   </TableRow>
-                )
+                );
               })}
             </TableBody>
           </Table>
@@ -171,5 +234,5 @@ export default function VisitRequestsPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

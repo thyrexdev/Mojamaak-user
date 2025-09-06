@@ -1,57 +1,98 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Eye, EyeOff, User } from "lucide-react" // Changed icon from Grid3X3 to User
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { Eye, EyeOff, User } from "lucide-react"
 
 export default function ProfilePage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
+  const [profile, setProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/profile`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        )
+
+        if (res.status === 403) {
+          setError("🚫 غير مصرح لك بمشاهدة هذه الصفحة")
+          setLoading(false)
+          return
+        }
+
+        if (!res.ok) {
+          setError("❌ حصل خطأ أثناء تحميل البيانات")
+          setLoading(false)
+          return
+        }
+
+        const json = await res.json()
+        setProfile(json.data)
+      } catch (err) {
+        setError("⚠️ خطأ في الاتصال بالسيرفر")
+        console.error("خطأ في تحميل البروفايل:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProfile()
+  }, [])
+
+  if (loading) return <div className="p-6">⏳ جاري التحميل...</div>
+  if (error) return <div className="p-6 text-red-500">{error}</div>
+  if (!profile) return <div className="p-6">⚠️ لا توجد بيانات بروفايل</div>
 
   const profileData = [
     {
       id: 1,
       info: "اسم المستخدم",
-      value: "admin123",
+      value: profile.name,
       type: "text",
     },
     {
       id: 2,
       info: "البريد الإلكتروني",
-      value: "admin@mogamak.com",
+      value: profile.email,
       type: "email",
     },
     {
       id: 3,
       info: "كلمة المرور",
-      value: "********", // Placeholder for password
-      actualValue: "mysecretpassword123", // Actual value for toggle
+      value: "********",
+      actualValue: "••••••••", // مش لازم backend يرجع password أصلاً
       type: "password",
     },
     {
       id: 4,
-      info: "الدور الوظيفي",
-      value: "سوبر ادمن",
+      info: "الصلاحيات",
+      value: profile.permissions?.join(", ") || "—",
       type: "text",
     },
     {
       id: 5,
-      info: "حالة الحساب",
-      value: "نشط",
+      info: "تاريخ الإنشاء",
+      value: new Date(profile.created_at).toLocaleDateString("ar-EG"),
       type: "text",
     },
   ]
 
   const handleEditProfileClick = () => {
-    router.push("/profile/edit") // Navigate to the edit profile form
+    router.push("/profile/edit")
   }
 
   return (
     <div className="p-6 font-arabic" dir="rtl">
-      {/* Card */}
       <Card className="bg-white shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between p-6 pb-4">
           <div>
@@ -70,11 +111,10 @@ export default function ProfilePage() {
         </CardHeader>
 
         <CardContent className="p-6 pt-0">
-          {/* Table */}
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50 text-sm font-semibold">
-                <TableHead className="text-center text-gray-700 w-[60px]">التسلسل</TableHead>
+                <TableHead className="text-center text-gray-700 w-[60px]">#</TableHead>
                 <TableHead className="text-right text-gray-700">المعلومة</TableHead>
                 <TableHead className="text-right text-gray-700">القيمة</TableHead>
                 <TableHead className="text-center text-gray-700">الإجراءات</TableHead>
@@ -87,39 +127,32 @@ export default function ProfilePage() {
                   <TableCell className="text-center font-semibold">{item.id}</TableCell>
                   <TableCell className="text-right">{item.info}</TableCell>
                   <TableCell className="text-right">
-                    {item.type === "password" ? (showPassword ? item.actualValue : item.value) : item.value}
+                    {item.type === "password"
+                      ? showPassword
+                        ? item.actualValue
+                        : item.value
+                      : item.value}
                   </TableCell>
                   <TableCell className="text-left">
-                    <div className="flex items-center justify-end gap-2">
-                      {item.type === "password" && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-gray-500 hover:bg-gray-100"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </Button>
-                      )}
-                    </div>
+                    {item.type === "password" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-gray-500 hover:bg-gray-100"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-
-          {/* Pagination (if needed, though usually not for a single profile) */}
-          <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-            <span>Page 1 of 1</span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled>
-                Next
-              </Button>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,12 +1,10 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import axios from "axios"
-
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -14,59 +12,74 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Plus, Search, SlidersHorizontal, Edit, Trash2 } from "lucide-react"
+} from "@/components/ui/table";
+import { Plus, Search, SlidersHorizontal, Edit, Trash2 } from "lucide-react";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-
-export default function MaintenancePage() {
-  const router = useRouter()
-  const [companies, setCompanies] = useState([])
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-
-const fetchCompanies = async () => {
-  try {
-    const token = localStorage.getItem("token")
-    if (!token) throw new Error("Aucun token trouvé")
-
-    const res = await fetch(
-      `${API_BASE_URL}/api/dashboard/complex-admin/maintenance-companies?per_page=10&page=${page}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    )
-
-    if (!res.ok) throw new Error("Erreur de chargement des sociétés")
-
-    const json = await res.json()
-    const data = json?.data?.MaintenanceCompanies || []
-    const totalPages = json?.data?.meta?.total_pages || 1
-
-    setCompanies(data)
-    setTotalPages(totalPages)
-  } catch (error) {
-    console.error("Erreur lors du chargement des sociétés :", error)
-  }
+interface CompanyTranslation {
+  name: string;
+  location: string;
+  description: string;
 }
 
-  useEffect(() => {
-    fetchCompanies()
-  }, [page])
+interface Company {
+  id: number;
+  type: "internal" | "external";
+  created_at: string;
+  translations?: {
+    ar?: CompanyTranslation;
+    en?: CompanyTranslation;
+    ku?: CompanyTranslation;
+  };
+}
 
-  const handleAddCompanyClick = () => {
-    router.push("/companies/add")
-  }
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
-  const getArabicTranslation = (company) => {
-    return company.translations?.ar || {
-      name: "-",
-      location: "-",
-      description: "-",
+export default function MaintenancePage() {
+  const router = useRouter();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchCompanies = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Aucun token trouvé");
+
+      const res = await fetch(
+        `${API_BASE_URL}/api/dashboard/complex-admin/maintenance-companies?per_page=10&page=${page}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) throw new Error("Erreur de chargement des sociétés");
+
+      const json = await res.json();
+      const data = json?.data?.MaintenanceCompanies || [];
+      const totalPages = json?.data?.meta?.total_pages || 1;
+
+      setCompanies(data);
+      setTotalPages(totalPages);
+    } catch (error) {
+      console.error("Erreur lors du chargement des sociétés :", error);
     }
-  }
+  };
+
+  useEffect(() => {
+    fetchCompanies();
+  }, [page]);
+
+  const getArabicTranslation = (company: Company) => {
+    return (
+      company.translations?.ar || {
+        name: "-",
+        location: "-",
+        description: "-",
+      }
+    );
+  };
 
   return (
     <div className="p-6 font-arabic" dir="rtl">
@@ -80,12 +93,6 @@ const fetchCompanies = async () => {
               جميع شركات الصيانة المسجلة في النظام.
             </p>
           </div>
-          <Button
-            onClick={handleAddCompanyClick}
-            className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" /> إضافة شركة صيانة جديدة
-          </Button>
         </CardHeader>
 
         <CardContent className="p-6 pt-0">
@@ -109,18 +116,32 @@ const fetchCompanies = async () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50 text-sm font-semibold">
-                <TableHead className="text-center text-gray-700 w-[60px]">التسلسل</TableHead>
-                <TableHead className="text-right text-gray-700">اسم الشركة</TableHead>
-                <TableHead className="text-right text-gray-700">نوع الشركة</TableHead>
-                <TableHead className="text-right text-gray-700">الموقع</TableHead>
-                <TableHead className="text-center text-gray-700">الحالة</TableHead>
-                <TableHead className="text-center text-gray-700">تاريخ الإضافة</TableHead>
-                <TableHead className="text-center text-gray-700">الإجراءات</TableHead>
+                <TableHead className="text-center text-gray-700 w-[60px]">
+                  التسلسل
+                </TableHead>
+                <TableHead className="text-right text-gray-700">
+                  اسم الشركة
+                </TableHead>
+                <TableHead className="text-right text-gray-700">
+                  نوع الشركة
+                </TableHead>
+                <TableHead className="text-right text-gray-700">
+                  الموقع
+                </TableHead>
+                <TableHead className="text-center text-gray-700">
+                  الحالة
+                </TableHead>
+                <TableHead className="text-center text-gray-700">
+                  تاريخ الإضافة
+                </TableHead>
+                <TableHead className="text-center text-gray-700">
+                  الإجراءات
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {companies.map((company) => {
-                const ar = getArabicTranslation(company)
+                const ar = getArabicTranslation(company);
                 return (
                   <TableRow key={company.id} className="hover:bg-gray-50">
                     <TableCell className="text-center font-semibold">
@@ -141,27 +162,29 @@ const fetchCompanies = async () => {
                     </TableCell>
                     <TableCell className="text-left">
                       <div className="flex items-center justify-end gap-2">
-           <Button
-  variant="outline"
-  size="sm"
-  className="text-gray-700 border-gray-300 bg-white hover:bg-gray-50"
-  onClick={() => router.push(`/companies/${company.id}`)}
->
-  عرض التفاصيل
-</Button>
-
-                 
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-gray-700 border-gray-300 bg-white hover:bg-gray-50"
+                          onClick={() =>
+                            router.push(`/companies/${company.id}`)
+                          }
+                        >
+                          عرض التفاصيل
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
-                )
+                );
               })}
             </TableBody>
           </Table>
 
           {/* Pagination */}
           <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-            <span>الصفحة {page} من {totalPages}</span>
+            <span>
+              الصفحة {page} من {totalPages}
+            </span>
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -184,5 +207,5 @@ const fetchCompanies = async () => {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

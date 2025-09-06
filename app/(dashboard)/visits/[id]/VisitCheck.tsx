@@ -8,10 +8,26 @@ import { Badge } from "@/components/ui/badge"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
+type VisitStatus = "pending" | "accepted" | "rejected"
+
+type VisitRequest = {
+  id: number
+  visiter_name: string
+  visiter_phone: string
+  visit_date: string
+  visit_time: string
+  description?: string
+  status: VisitStatus
+  user?: {
+    id: number
+    name: string
+  }
+}
+
 export default function VisitRequestDetailsPage() {
   const { id } = useParams()
   const router = useRouter()
-  const [visit, setVisit] = useState(null)
+  const [visit, setVisit] = useState<VisitRequest | null>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchVisitDetails = async () => {
@@ -35,7 +51,7 @@ export default function VisitRequestDetailsPage() {
       setLoading(false)
     }
   }
-const updateStatus = async (newStatus) => {
+const updateStatus = async (newStatus: VisitStatus) => {
   try {
     const token = localStorage.getItem("token")
     if (!token) throw new Error("Token non trouvé")
@@ -54,8 +70,8 @@ const updateStatus = async (newStatus) => {
       throw new Error(`Échec de la mise à jour du statut → ${res.status}: ${errorBody}`)
     }
 
-    setVisit((prev) => ({ ...prev, status: newStatus }))
-  } catch (error) {
+      setVisit((prev) => (prev ? { ...prev, status: newStatus } : prev))
+      } catch (error) {
     console.error("Erreur lors de la mise à jour du statut:", error)
   }
 }
@@ -77,7 +93,7 @@ const updateStatus = async (newStatus) => {
     return <p className="text-center mt-8 text-red-500">لم يتم العثور على الطلب</p>
   }
 
-  const getStatusLabel = (status) => {
+  const getStatusLabel = (status: VisitStatus) => {
     switch (status) {
       case "accepted": return "مقبول"
       case "rejected": return "مرفوض"
@@ -86,9 +102,9 @@ const updateStatus = async (newStatus) => {
     }
   }
 
-  const getBadgeVariant = (status) => {
+  const getBadgeVariant = (status: VisitStatus) => {
     switch (status) {
-      case "accepted": return "success"
+      case "accepted": return "default"
       case "rejected": return "destructive"
       case "pending":
       default: return "outline"
