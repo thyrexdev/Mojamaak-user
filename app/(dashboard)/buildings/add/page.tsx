@@ -186,19 +186,6 @@ const handleApartmentChange = (
                 />
               </div>
             ))}
-
-            {/* Upload Image Placeholder */}
-            <div className="border border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary-500 transition-colors">
-              <UploadCloud className="mx-auto h-10 w-10 text-gray-400 mb-3" />
-              <p className="text-sm text-gray-600">
-                اضغط لرفع صورة أو اسحب الملف
-                <br />
-                <span className="text-xs text-gray-500">
-                  PNG, JPG, SVG (800x400px)
-                </span>
-              </p>
-            </div>
-
             {/* Apartments Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">

@@ -6,12 +6,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { UploadCloud, CalendarDays, User } from "lucide-react"
+import { User } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function AddPaymentPage() {
   const router = useRouter()
+  const { toast } = useToast()
+
   const [residents, setResidents] = useState<any[]>([])
   const [selectedResidentId, setSelectedResidentId] = useState<string | null>(null)
   const [selectedApartmentId, setSelectedApartmentId] = useState<string | null>(null)
@@ -21,7 +24,6 @@ export default function AddPaymentPage() {
   // form states
   const [totalAmount, setTotalAmount] = useState("")
   const [paidAmount, setPaidAmount] = useState("")
-  const [remaining, setRemaining] = useState("")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [description, setDescription] = useState("")
@@ -40,13 +42,18 @@ export default function AddPaymentPage() {
         setResidents(residentList)
       } catch (error) {
         console.error("Erreur lors du chargement des السكان", error)
+        toast({
+          title: "خطأ",
+          description: "فشل تحميل السكان",
+          variant: "destructive",
+        })
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchResidents()
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     if (!selectedResidentId) return
@@ -59,7 +66,11 @@ export default function AddPaymentPage() {
 
     const token = localStorage.getItem("token")
     if (!token) {
-      alert("مفيش توكن! سجل دخول الأول.")
+      toast({
+        title: "تنبيه",
+        description: "مفيش توكن! سجل دخول الأول.",
+        variant: "destructive",
+      })
       return
     }
 
@@ -72,11 +83,11 @@ export default function AddPaymentPage() {
         body: (() => {
           const form = new FormData()
           form.append("total_amount", totalAmount)
-          form.append("installment_amount", paidAmount) // عندك مثال اسمه installment_amount
+          form.append("installment_amount", paidAmount)
           form.append("installment_period_from", dateFrom)
-          form.append("installment_period_to", dateTo || dateFrom) // fallback بسيط
+          form.append("installment_period_to", dateTo || dateFrom)
           form.append("description", description || "—")
-          form.append("status", status) // pending, completed, failed
+          form.append("status", status)
           form.append("user_id", selectedResidentId || "")
           if (selectedApartmentId) form.append("apartment_id", selectedApartmentId)
           form.append("is_active", active ? "1" : "0")
@@ -89,11 +100,19 @@ export default function AddPaymentPage() {
         throw new Error(`فشل الحفظ: ${res.status} → ${text}`)
       }
 
-      // لو كله تمام
+      toast({
+        title: "تم الحفظ",
+        description: "تمت إضافة الدفعة المالية بنجاح ✅",
+      })
+
       router.push("/financial")
     } catch (err) {
       console.error("Error saving payment:", err)
-      alert("حصل خطأ أثناء الحفظ")
+      toast({
+        title: "خطأ",
+        description: "حصل خطأ أثناء الحفظ ❌",
+        variant: "destructive",
+      })
     }
   }
 
@@ -165,12 +184,6 @@ export default function AddPaymentPage() {
               <Input type="number" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} dir="rtl" />
             </div>
 
-            {/* Remaining */}
-            <div className="space-y-2">
-              <Label className="text-right block">المتبقي</Label>
-              <Input type="number" value={remaining} onChange={(e) => setRemaining(e.target.value)} dir="rtl" />
-            </div>
-
             {/* Date From */}
             <div className="space-y-2">
               <Label className="text-right block">تاريخ بداية الفترة<span className="text-red-500">*</span></Label>
@@ -212,7 +225,12 @@ export default function AddPaymentPage() {
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={handleCancel} className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent"
+              >
                 إلغاء
               </Button>
               <Button type="submit" className="bg-primary-500 hover:bg-primary-600 text-white">

@@ -98,19 +98,6 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, sidebarWidth }: Na
         <div className="flex items-center gap-4 flex-shrink-0">
           <div className="flex gap-2">
             <ThemeToggle />
-            <Link href="/messages">
-              <div className="w-10 h-10 rounded-lg bg-[#E6F4FA] flex items-center justify-center text-[#0593D2] cursor-pointer hover:bg-primary-100 transition-colors">
-                <MessageSquare className="w-5 h-5" />
-              </div>
-            </Link>
-            <div className="w-10 h-10 rounded-lg bg-[#E6F4FA] flex items-center justify-center text-[#0593D2] cursor-pointer hover:bg-primary-100 transition-colors">
-              <Grid3X3 className="w-5 h-5" />
-            </div>
-            <Link href="/notifications">
-              <div className="w-10 h-10 rounded-lg bg-[#E6F4FA] flex items-center justify-center text-[#0593D2] cursor-pointer hover:bg-primary-100 transition-colors">
-                <Bell className="w-5 h-5" />
-              </div>
-            </Link>
           </div>
 
           <DropdownMenu dir="rtl">
