@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Table,
   TableBody,
@@ -19,6 +20,7 @@ import Link from "next/link";
 export default function ComplexAdminsPage() {
   const router = useRouter();
   const pathname = usePathname()
+  const { toast } = useToast();
   const [admins, setAdmins] = useState<any[]>([]);
   const [meta, setMeta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -32,11 +34,20 @@ export default function ComplexAdminsPage() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/complex-admins?per_page=10&page=${page}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      
+      if (!res.ok) {
+        throw new Error("فشل في تحميل البيانات");
+      }
+      
       const json = await res.json();
       setAdmins(json.data.complexAdmin);
       setMeta(json.data.meta);
     } catch (err) {
-      console.error("خطأ في تحميل الإداريين:", err);
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ في تحميل قائمة الإداريين",
+      });
     } finally {
       setLoading(false);
     }

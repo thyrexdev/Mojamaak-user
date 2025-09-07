@@ -8,12 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import toast from 'react-hot-toast'
+import { useToast } from '@/components/ui/use-toast'
 
 export default function AddApartmentPage() {
   const params = useParams()
   const id = params?.id as string
   const router = useRouter()
+  const { toast } = useToast()
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
   const [formData, setFormData] = useState({
@@ -29,9 +30,16 @@ export default function AddApartmentPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = async () => {
+    const handleSubmit = async () => {
     const token = localStorage.getItem('token')
-    if (!token) return toast.error('Token manquant')
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "لم يتم العثور على رمز الدخول"
+      });
+      return;
+    }
 
     const body = new FormData()
     body.append('apartments[0][floor_number]', formData.floor_number)
@@ -49,13 +57,22 @@ export default function AddApartmentPage() {
         body,
       })
 
-      if (!res.ok) throw new Error('Erreur lors de l’ajout')
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "فشل في إضافة الشقة");
+      }
 
-      toast.success('تمت إضافة الشقة بنجاح')
+      toast({
+        title: "نجاح",
+        description: "تمت إضافة الشقة بنجاح"
+      });
       router.push('/buildings')
-    } catch (err) {
-      console.error(err)
-      toast.error('فشل في إضافة الشقة')
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء إضافة الشقة"
+      });
     }
   }
 

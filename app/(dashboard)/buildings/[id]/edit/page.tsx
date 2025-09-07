@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/components/ui/use-toast";
 import { Building2, Plus, Trash2 } from "lucide-react";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.mojamaak.com";
@@ -27,6 +28,7 @@ export default function EditBuildingPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const buildingId = useMemo(() => Number(params?.id), [params?.id]);
+  const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,12 +57,33 @@ export default function EditBuildingPage() {
     const run = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token || !buildingId) return;
+        if (!token) {
+          toast({
+            variant: "destructive",
+            title: "خطأ",
+            description: "لم يتم العثور على رمز الدخول",
+          });
+          return;
+        }
+
+        if (!buildingId) {
+          toast({
+            variant: "destructive",
+            title: "خطأ",
+            description: "معرف المبنى غير صالح",
+          });
+          return;
+        }
 
         const res = await fetch(
           `${API_BASE_URL}/api/dashboard/complex-admin/buildings/${buildingId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || "فشل في تحميل بيانات المبنى");
+        }
 
         const json = await res.json();
 
@@ -70,23 +93,22 @@ export default function EditBuildingPage() {
           json?.data ??
           json;
 
-        // Pre-fill Arabic with server strings if translations aren’t provided by the API
-        const serverAddress = b?.address ?? "";
-        const serverDescription = b?.description ?? "";
+        // Get the Arabic text or fallback to default server strings
+        const serverAddress = b?.translations?.ar?.address ?? b?.address ?? "";
+        const serverDescription = b?.translations?.ar?.description ?? b?.description ?? "";
 
+        // Set the same value for all languages
         setAddress({
-          ar: b?.translations?.ar?.address ?? serverAddress ?? "",
-          en: b?.translations?.en?.address ?? "",
-          ku: b?.translations?.ku?.address ?? "",
+          ar: serverAddress,
+          en: serverAddress,
+          ku: serverAddress,
         });
 
         setDescription({
-          ar: b?.translations?.ar?.description ?? serverDescription ?? "",
-          en: b?.translations?.en?.description ?? "",
-          ku: b?.translations?.ku?.description ?? "",
-        });
-
-        // optional fields – keep empty if backend doesn’t send them
+          ar: serverDescription,
+          en: serverDescription,
+          ku: serverDescription,
+        });        // optional fields – keep empty if backend doesn’t send them
         setStatusActive(String(b?.status ?? "active") === "active");
         setFloorNumber(String(b?.floor_number ?? ""));
         if (b?.building_date) {
@@ -107,8 +129,12 @@ export default function EditBuildingPage() {
           : [];
 
         setApartments(apts);
-      } catch (e) {
-        console.error("Fetch building failed:", e);
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: error instanceof Error ? error.message : "حدث خطأ في تحميل بيانات المبنى"
+        });
       } finally {
         setLoading(false);
       }
@@ -196,7 +222,7 @@ export default function EditBuildingPage() {
         }
       });
 
-      // deletions
+      // deletionsi want to delete multi language inputs and leave only one language model (arabic) and in the post req send all languages with the same inputs ar en ku
       let delIdx = 0;
       apartments.forEach((a) => {
         if (a.id && a._markedForDelete) {
@@ -215,15 +241,21 @@ export default function EditBuildingPage() {
       );
 
       if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(`Update failed ${res.status}: ${msg}`);
+        const errorData = await res.json();
+        throw new Error(errorData.message || "فشل في تحديث المبنى");
       }
 
-      alert("✅ تم تحديث المبنى بنجاح");
+      toast({
+        title: "نجاح",
+        description: "تم تحديث المبنى بنجاح"
+      });
       router.push("/buildings");
-    } catch (e) {
-      console.error(e);
-      alert("❌ فشل تحديث المبنى");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء تحديث المبنى"
+      });
     } finally {
       setSaving(false);
     }
@@ -244,33 +276,29 @@ export default function EditBuildingPage() {
             <p className="text-center">جارٍ التحميل…</p>
           ) : (
             <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-              {/* Address (ar/en/ku) */}
-              {(["ar", "en", "ku"] as const).map((lang) => (
-                <div className="space-y-2" key={`addr-${lang}`}>
-                  <Label>
-                    العنوان ({lang})<span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    dir={lang === "ar" ? "rtl" : "ltr"}
-                    value={address[lang]}
-                    onChange={(e) => setAddress({ ...address, [lang]: e.target.value })}
-                  />
-                </div>
-              ))}
+              {/* Address */}
+              <div className="space-y-2">
+                <Label>
+                  العنوان<span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  dir="rtl"
+                  value={address.ar}
+                  onChange={(e) => setAddress({ ar: e.target.value, en: e.target.value, ku: e.target.value })}
+                />
+              </div>
 
-              {/* Description (ar/en/ku) */}
-              {(["ar", "en", "ku"] as const).map((lang) => (
-                <div className="space-y-2" key={`desc-${lang}`}>
-                  <Label>
-                    الوصف ({lang})<span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    dir={lang === "ar" ? "rtl" : "ltr"}
-                    value={description[lang]}
-                    onChange={(e) => setDescription({ ...description, [lang]: e.target.value })}
-                  />
-                </div>
-              ))}
+              {/* Description */}
+              <div className="space-y-2">
+                <Label>
+                  الوصف<span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  dir="rtl"
+                  value={description.ar}
+                  onChange={(e) => setDescription({ ar: e.target.value, en: e.target.value, ku: e.target.value })}
+                />
+              </div>
 
               {/* optional building fields */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

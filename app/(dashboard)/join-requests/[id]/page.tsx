@@ -5,10 +5,12 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Check, X } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function JoinRequestDetailsPage() {
   const { requestId } = useParams()
   const router = useRouter()
+  const { toast } = useToast()
   const [request, setRequest] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
@@ -17,14 +19,28 @@ export default function JoinRequestDetailsPage() {
     try {
       setLoading(true)
       const token = localStorage.getItem("token")
+      if (!token) {
+        throw new Error("لم يتم العثور على التوكن")
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/join-requests/${requestId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
+
+      if (!res.ok) {
+        throw new Error(`فشل في جلب تفاصيل الطلب (${res.status})`)
+      }
+
       const json = await res.json()
       setRequest(json.data || null)
-    } catch (err) {
+    } catch (err: any) {
       console.error("خطأ في تحميل تفاصيل الطلب:", err)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: err?.message || "حدث خطأ في تحميل تفاصيل الطلب"
+      })
     } finally {
       setLoading(false)
     }
@@ -34,6 +50,10 @@ export default function JoinRequestDetailsPage() {
     try {
       setUpdating(true)
       const token = localStorage.getItem("token")
+      if (!token) {
+        throw new Error("لم يتم العثور على التوكن")
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/join-requests/${requestId}/status`,
         {
@@ -45,14 +65,28 @@ export default function JoinRequestDetailsPage() {
           body: JSON.stringify({ status }),
         }
       )
+
+      if (!res.ok) {
+        throw new Error(`فشل في تحديث حالة الطلب (${res.status})`)
+      }
+
       const json = await res.json()
       if (json.code === 200) {
         setRequest(json.data)
+        toast({
+          title: "نجاح",
+          description: status === "approved" ? "تم قبول الطلب بنجاح" : "تم رفض الطلب بنجاح"
+        })
       } else {
-        console.error("فشل التحديث:", json.message)
+        throw new Error(json.message || "فشل التحديث")
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("خطأ في تحديث الحالة:", err)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: err?.message || "حدث خطأ في تحديث حالة الطلب"
+      })
     } finally {
       setUpdating(false)
     }

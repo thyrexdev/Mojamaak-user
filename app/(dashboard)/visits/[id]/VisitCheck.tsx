@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/components/ui/use-toast"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
@@ -27,13 +28,21 @@ type VisitRequest = {
 export default function VisitRequestDetailsPage() {
   const { id } = useParams()
   const router = useRouter()
+  const { toast } = useToast()
   const [visit, setVisit] = useState<VisitRequest | null>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchVisitDetails = async () => {
     try {
       const token = localStorage.getItem("token")
-      if (!token) throw new Error("Token non trouvé")
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول"
+        })
+        return
+      }
 
       const res = await fetch(`${API_BASE_URL}/api/dashboard/complex-admin/visit-requests/${id}`, {
         headers: {
@@ -41,12 +50,23 @@ export default function VisitRequestDetailsPage() {
         },
       })
 
-      if (!res.ok) throw new Error("Échec du chargement")
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "فشل في تحميل تفاصيل الزيارة"
+        })
+        return
+      }
 
       const json = await res.json()
       setVisit(json.data)
     } catch (error) {
-      console.error("Erreur lors du chargement de la visite:", error)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع أثناء تحميل تفاصيل الزيارة"
+      })
     } finally {
       setLoading(false)
     }
@@ -54,7 +74,14 @@ export default function VisitRequestDetailsPage() {
 const updateStatus = async (newStatus: VisitStatus) => {
   try {
     const token = localStorage.getItem("token")
-    if (!token) throw new Error("Token non trouvé")
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "لم يتم العثور على رمز الدخول"
+      })
+      return
+    }
 
     const res = await fetch(`${API_BASE_URL}/api/dashboard/complex-admin/visit-requests/${id}/status`, {
       method: "PATCH",
@@ -67,12 +94,25 @@ const updateStatus = async (newStatus: VisitStatus) => {
 
     if (!res.ok) {
       const errorBody = await res.text()
-      throw new Error(`Échec de la mise à jour du statut → ${res.status}: ${errorBody}`)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "فشل في تحديث حالة الطلب"
+      })
+      return
     }
 
-      setVisit((prev) => (prev ? { ...prev, status: newStatus } : prev))
-      } catch (error) {
-    console.error("Erreur lors de la mise à jour du statut:", error)
+    setVisit((prev) => (prev ? { ...prev, status: newStatus } : prev))
+    toast({
+      title: "نجاح",
+      description: `تم ${newStatus === 'accepted' ? 'قبول' : 'رفض'} طلب الزيارة بنجاح`
+    })
+  } catch (error) {
+    toast({
+      variant: "destructive",
+      title: "خطأ",
+      description: "حدث خطأ غير متوقع أثناء تحديث حالة الطلب"
+    })
   }
 }
 

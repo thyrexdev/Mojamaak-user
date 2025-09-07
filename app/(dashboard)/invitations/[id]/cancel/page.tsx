@@ -4,10 +4,12 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function InvitationDetailsPage() {
   const { id } = useParams()
   const router = useRouter()
+  const { toast } = useToast()
   const [invitation, setInvitation] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [canceling, setCanceling] = useState(false)
@@ -16,14 +18,31 @@ export default function InvitationDetailsPage() {
     try {
       setLoading(true)
       const token = localStorage.getItem("token")
+      if (!token) {
+        throw new Error("لم يتم العثور على التوكن")
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/invitations/${id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
+
+      if (!res.ok) {
+        throw new Error(`فشل في جلب تفاصيل الدعوة (${res.status})`)
+      }
+
       const json = await res.json()
+      if (!json.data) {
+        throw new Error("لم يتم العثور على بيانات الدعوة")
+      }
       setInvitation(json.data)
-    } catch (err) {
+    } catch (err: any) {
       console.error("خطأ في تحميل الدعوة:", err)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: err?.message || "حدث خطأ في تحميل تفاصيل الدعوة"
+      })
     } finally {
       setLoading(false)
     }
@@ -33,6 +52,10 @@ export default function InvitationDetailsPage() {
     try {
       setCanceling(true)
       const token = localStorage.getItem("token")
+      if (!token) {
+        throw new Error("لم يتم العثور على التوكن")
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/invitations/${id}/cancel`,
         {
@@ -40,10 +63,34 @@ export default function InvitationDetailsPage() {
           headers: { Authorization: `Bearer ${token}` },
         }
       )
+
+      if (!res.ok) {
+        throw new Error(`فشل في إلغاء الدعوة (${res.status})`)
+      }
+
       const json = await res.json()
+      if (!json.data) {
+        throw new Error("لم يتم العثور على بيانات الدعوة بعد الإلغاء")
+      }
+
       setInvitation(json.data)
-    } catch (err) {
+      toast({
+        title: "نجاح",
+        description: "تم إلغاء الدعوة بنجاح"
+      })
+
+      // Navigate back to invitations list after successful cancellation
+      setTimeout(() => {
+        router.push("/invitations")
+      }, 2000)
+
+    } catch (err: any) {
       console.error("خطأ في إلغاء الدعوة:", err)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: err?.message || "حدث خطأ في إلغاء الدعوة"
+      })
     } finally {
       setCanceling(false)
     }
@@ -70,7 +117,7 @@ export default function InvitationDetailsPage() {
           </div>
           <Button
             variant="outline"
-            onClick={() => router.push("/dashboard/complex-admin/invitations")}
+            onClick={() => router.push("/invitations")}
           >
             رجوع للقائمة
           </Button>

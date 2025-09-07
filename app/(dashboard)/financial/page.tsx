@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table"
 import { Plus, Search, SlidersHorizontal, Edit, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
 
 interface User {
   id: number
@@ -39,12 +40,19 @@ interface Payment {
 
 export default function FinancialPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [payments, setPayments] = useState<Payment[]>([])
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const fetchPayments = async () => {
     try {
+      setLoading(true)
       const token = localStorage.getItem("token")
+      if (!token) {
+        throw new Error("لم يتم العثور على التوكن")
+      }
+
       const res = await fetch(
         `https://api.mojamaak.com/api/dashboard/complex-admin/payments?per_page=10&page=1`,
         {
@@ -53,16 +61,51 @@ export default function FinancialPage() {
           },
         }
       )
+
+      if (!res.ok) {
+        throw new Error(`فشل في جلب الدفعات المالية (${res.status})`)
+      }
+
       const json = await res.json()
-      setPayments(json.data.Payments || [])
-    } catch (err) {
-      console.error("Erreur lors du chargement des paiements :", err)
+      if (!json.data?.Payments) {
+        throw new Error("لم يتم العثور على بيانات الدفعات")
+      }
+
+      setPayments(json.data.Payments)
+    } catch (err: any) {
+      console.error("خطأ في تحميل الدفعات:", err)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: err?.message || "حدث خطأ في تحميل الدفعات المالية"
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchPayments()
   }, [])
+
+  if (loading) {
+    return <div className="p-6 text-center font-arabic">جاري التحميل...</div>
+  }
+
+  if (payments.length === 0) {
+    return (
+      <div className="p-6 text-center font-arabic">
+        <p className="text-gray-500">لا توجد دفعات مالية حالياً</p>
+        <Button 
+          onClick={() => router.push("/financial/add")}
+          className="mt-4"
+        >
+          <Plus className="w-4 h-4 ml-2" />
+          إضافة دفعة مالية جديدة
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 font-arabic" dir="rtl">

@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/components/ui/use-toast";
 import { UploadCloud, Building2, Plus } from "lucide-react";
 
 type AddressLang = "ar" | "en" | "ku";
@@ -32,6 +33,7 @@ interface Apartment {
 
 export default function AddBuildingPage() {
   const router = useRouter();
+  const { toast } = useToast();
 
   const [address, setAddress] = useState<Address>({ ar: "", en: "", ku: "" });
   const [description, setDescription] = useState<Address>({
@@ -116,6 +118,15 @@ const handleApartmentChange = (
       });
 
       const token = localStorage.getItem("token");
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول",
+        });
+        return;
+      }
+
       const response = await fetch(
         "https://api.mojamaak.com/api/dashboard/complex-admin/buildings",
         {
@@ -128,14 +139,21 @@ const handleApartmentChange = (
       );
 
       if (!response.ok) {
-        throw new Error("Erreur lors de la création du bâtiment");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "فشل في إضافة المبنى");
       }
 
-      alert("✅ تم حفظ المبنى بنجاح");
+      toast({
+        title: "نجاح",
+        description: "تم إضافة المبنى بنجاح",
+      });
       router.push("/buildings");
     } catch (error) {
-      console.error(error);
-      alert("❌ فشل في حفظ المبنى");
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء إضافة المبنى",
+      });
     }
   };
 
@@ -155,37 +173,43 @@ const handleApartmentChange = (
       <Card className="bg-white shadow-sm max-w-3xl mx-auto">
         <CardContent className="p-6">
           <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-            {/* Address fields */}
-            {["ar", "en", "ku"].map((lang) => (
-              <div className="space-y-2" key={`address-${lang}`}>
-                <Label>
-                  العنوان ({lang})<span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  dir={lang === "ar" ? "rtl" : "ltr"}
-                  value={address[lang as AddressLang]}
-                  onChange={(e) =>
-                    setAddress({ ...address, [lang as AddressLang]: e.target.value })
-                  }
-                />
-              </div>
-            ))}
+            {/* Address field */}
+            <div className="space-y-2">
+              <Label>
+                العنوان<span className="text-red-500">*</span>
+              </Label>
+              <Input
+                dir="rtl"
+                value={address.ar}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setAddress({
+                    ar: value,
+                    en: value,
+                    ku: value,
+                  });
+                }}
+              />
+            </div>
 
-            {/* Description fields */}
-            {["ar", "en", "ku"].map((lang) => (
-              <div className="space-y-2" key={`description-${lang}`}>
-                <Label>
-                  الوصف ({lang})<span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  dir={lang === "ar" ? "rtl" : "ltr"}
-                  value={description[lang as AddressLang]}
-                  onChange={(e) =>
-                    setDescription({ ...description, [lang]: e.target.value })
-                  }
-                />
-              </div>
-            ))}
+            {/* Description field */}
+            <div className="space-y-2">
+              <Label>
+                الوصف<span className="text-red-500">*</span>
+              </Label>
+              <Input
+                dir="rtl"
+                value={description.ar}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDescription({
+                    ar: value,
+                    en: value,
+                    ku: value,
+                  });
+                }}
+              />
+            </div>
             {/* Apartments Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">

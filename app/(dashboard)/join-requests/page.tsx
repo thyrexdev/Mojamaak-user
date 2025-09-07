@@ -6,9 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Check, X } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function JoinRequestsPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [requests, setRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -16,14 +18,28 @@ export default function JoinRequestsPage() {
     try {
       setLoading(true)
       const token = localStorage.getItem("token")
+      if (!token) {
+        throw new Error("لم يتم العثور على التوكن")
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/join-requests`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
+
+      if (!res.ok) {
+        throw new Error(`فشل في جلب طلبات الانضمام (${res.status})`)
+      }
+
       const json = await res.json()
       setRequests(json.data || [])
-    } catch (err) {
+    } catch (err: any) {
       console.error("خطأ في تحميل طلبات الانضمام:", err)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: err?.message || "حدث خطأ في تحميل طلبات الانضمام"
+      })
     } finally {
       setLoading(false)
     }
@@ -43,7 +59,7 @@ export default function JoinRequestsPage() {
             <CardTitle className="text-lg font-semibold text-gray-900">طلبات الانضمام</CardTitle>
             <p className="text-sm text-gray-500">عرض وإدارة طلبات الانضمام للمجمعات السكنية.</p>
           </div>
-          <Button variant="outline" onClick={() => router.refresh()}>
+          <Button variant="outline" onClick={() => fetchJoinRequests()}>
             تحديث
           </Button>
         </CardHeader>

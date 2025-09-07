@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Table,
   TableBody,
@@ -50,12 +51,13 @@ export default function MaintenanceRequestsPage() {
   const [requests, setRequests] = useState<Req[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchRequests = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token) throw new Error("Aucun token trouvé");
+        if (!token) throw new Error("لم يتم العثور على التوكن");
 
         const res = await fetch(
           "/api/dashboard/complex-admin/maintenance-requests?per_page=10&page=1",
@@ -65,10 +67,20 @@ export default function MaintenanceRequestsPage() {
             },
           }
         );
+
+        if (!res.ok) {
+          throw new Error(`فشل في جلب طلبات الصيانة (${res.status})`);
+        }
+
         const data = await res.json();
         setRequests(data?.data?.maintenance_requests ?? []);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Fetch error:", err);
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: err?.message || "حدث خطأ في جلب طلبات الصيانة"
+        });
       } finally {
         setLoading(false);
       }

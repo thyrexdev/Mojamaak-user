@@ -5,18 +5,18 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function LinkComplexAdminPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       setLoading(true)
-      setMessage(null)
       const token = localStorage.getItem("token")
 
       const res = await fetch(
@@ -33,14 +33,24 @@ export default function LinkComplexAdminPage() {
 
       const json = await res.json()
       if (res.ok) {
-        setMessage("✅ تم إرسال الدعوة بنجاح")
+        toast({
+          title: "نجاح",
+          description: "تم إرسال الدعوة بنجاح",
+        })
         setEmail("")
       } else {
-        setMessage(`❌ خطأ: ${json.message || "حدث خطأ غير متوقع"}`)
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: json.message || "حدث خطأ غير متوقع",
+        })
       }
     } catch (err) {
-      console.error("خطأ أثناء إرسال الدعوة:", err)
-      setMessage("❌ حدث خطأ أثناء الاتصال بالخادم")
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ أثناء الاتصال بالخادم",
+      })
     } finally {
       setLoading(false)
     }
@@ -71,16 +81,6 @@ export default function LinkComplexAdminPage() {
                 dir="rtl"
               />
             </div>
-
-            {message && (
-              <p
-                className={`text-sm ${
-                  message.startsWith("✅") ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {message}
-              </p>
-            )}
 
             <div className="flex gap-2 justify-end">
               <Button

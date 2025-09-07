@@ -8,6 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Eye } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
@@ -30,9 +31,9 @@ type Meta = {
 
 export default function ResidentsPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   // pagination
   const [page, setPage] = useState(1)
@@ -41,16 +42,31 @@ export default function ResidentsPage() {
 
   const fetchUsers = async (pageNum = 1) => {
     setLoading(true)
-    setError(null)
     try {
       const token = localStorage.getItem("token")
-      if (!token) throw new Error("لم يتم العثور على التوكن")
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول"
+        })
+        return
+      }
 
       const res = await fetch(
         `${API_BASE_URL}/api/dashboard/complex-admin/users?per_page=${perPage}&page=${pageNum}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      if (!res.ok) throw new Error(`API ${res.status} — ${await res.text()}`)
+      
+      if (!res.ok) {
+        const errorText = await res.text()
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: `فشل في تحميل بيانات السكان (${res.status})`
+        })
+        return
+      }
 
       const json = await res.json()
       const block = json?.data ?? json
@@ -67,7 +83,11 @@ export default function ResidentsPage() {
       setMeta(metaBlock)
       setPage(metaBlock.current_page || pageNum)
     } catch (e: any) {
-      setError(e?.message || "حدث خطأ أثناء جلب البيانات")
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع أثناء تحميل بيانات السكان"
+      })
     } finally {
       setLoading(false)
     }
@@ -91,12 +111,6 @@ export default function ResidentsPage() {
         </CardHeader>
 
         <CardContent className="p-6 pt-0">
-          {error && (
-            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
           {loading ? (
             <p className="text-center py-10">جارٍ التحميل...</p>
           ) : (

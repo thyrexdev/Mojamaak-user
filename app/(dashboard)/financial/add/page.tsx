@@ -34,17 +34,31 @@ export default function AddPaymentPage() {
     const fetchResidents = async () => {
       try {
         const token = localStorage.getItem("token")
+        if (!token) {
+          throw new Error("لم يتم العثور على التوكن")
+        }
+
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/users`, {
           headers: { Authorization: `Bearer ${token}` },
         })
+
+        if (!res.ok) {
+          throw new Error(`فشل في جلب قائمة السكان (${res.status})`)
+        }
+
         const json = await res.json()
-        const residentList = json.data?.users || []
+        const residentList = json.data?.users
+        
+        if (!residentList) {
+          throw new Error("لم يتم العثور على بيانات السكان")
+        }
+
         setResidents(residentList)
-      } catch (error) {
-        console.error("Erreur lors du chargement des السكان", error)
+      } catch (error: any) {
+        console.error("خطأ في تحميل السكان:", error)
         toast({
           title: "خطأ",
-          description: "فشل تحميل السكان",
+          description: error?.message || "حدث خطأ في تحميل بيانات السكان",
           variant: "destructive",
         })
       } finally {
@@ -61,57 +75,95 @@ export default function AddPaymentPage() {
     setApartments(selectedUser?.apartments || [])
   }, [selectedResidentId, residents])
 
+  const validateForm = () => {
+    if (!selectedResidentId) {
+      toast({
+        title: "خطأ",
+        description: "يرجى اختيار الساكن",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    if (!totalAmount) {
+      toast({
+        title: "خطأ",
+        description: "يرجى إدخال المبلغ الكلي",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    if (!dateFrom) {
+      toast({
+        title: "خطأ",
+        description: "يرجى تحديد تاريخ البداية",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    return true
+  }
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!validateForm()) {
+      return
+    }
 
     const token = localStorage.getItem("token")
     if (!token) {
       toast({
-        title: "تنبيه",
-        description: "مفيش توكن! سجل دخول الأول.",
+        title: "خطأ",
+        description: "لم يتم العثور على التوكن، يرجى تسجيل الدخول مرة أخرى",
         variant: "destructive",
       })
       return
     }
 
     try {
+      const formData = new FormData()
+      formData.append("total_amount", totalAmount)
+      formData.append("installment_amount", paidAmount)
+      formData.append("installment_period_from", dateFrom)
+      formData.append("installment_period_to", dateTo || dateFrom)
+      formData.append("description", description || "—")
+      formData.append("status", status)
+      formData.append("user_id", selectedResidentId || "")
+      if (selectedApartmentId) formData.append("apartment_id", selectedApartmentId)
+      formData.append("is_active", active ? "1" : "0")
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/payments`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        body: (() => {
-          const form = new FormData()
-          form.append("total_amount", totalAmount)
-          form.append("installment_amount", paidAmount)
-          form.append("installment_period_from", dateFrom)
-          form.append("installment_period_to", dateTo || dateFrom)
-          form.append("description", description || "—")
-          form.append("status", status)
-          form.append("user_id", selectedResidentId || "")
-          if (selectedApartmentId) form.append("apartment_id", selectedApartmentId)
-          form.append("is_active", active ? "1" : "0")
-          return form
-        })(),
+        body: formData,
       })
 
       if (!res.ok) {
         const text = await res.text()
-        throw new Error(`فشل الحفظ: ${res.status} → ${text}`)
+        throw new Error(`فشل في حفظ الدفعة: ${res.status} - ${text}`)
       }
 
+      await res.json()
+      
       toast({
-        title: "تم الحفظ",
-        description: "تمت إضافة الدفعة المالية بنجاح ✅",
+        title: "نجاح",
+        description: "تم إضافة الدفعة المالية بنجاح ✅",
       })
 
+      // Navigate back to the financial list after success
       router.push("/financial")
-    } catch (err) {
-      console.error("Error saving payment:", err)
+
+    } catch (err: any) {
+      console.error("خطأ في حفظ الدفعة:", err)
       toast({
-        title: "خطأ",
-        description: "حصل خطأ أثناء الحفظ ❌",
         variant: "destructive",
+        title: "خطأ",
+        description: err?.message || "حدث خطأ في حفظ الدفعة المالية"
       })
     }
   }

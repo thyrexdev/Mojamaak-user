@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Eye } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
@@ -44,9 +45,9 @@ type Meta = {
 
 export default function VisitRequestsPage({ userId }: { userId: number }) {
   const router = useRouter()
+  const { toast } = useToast()
   const [requests, setRequests] = useState<VisitRequest[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   const [page, setPage] = useState(1)
   const [perPage] = useState(10)
@@ -54,16 +55,30 @@ export default function VisitRequestsPage({ userId }: { userId: number }) {
 
   const fetchRequests = async (pageNum = 1) => {
     setLoading(true)
-    setError(null)
     try {
       const token = localStorage.getItem("token")
-      if (!token) throw new Error("لم يتم العثور على التوكن")
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول"
+        })
+        return
+      }
 
       const res = await fetch(
         `${API_BASE_URL}/api/dashboard/complex-admin/users/${userId}/visit-requests?per_page=${perPage}&page=${pageNum}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      if (!res.ok) throw new Error(`API ${res.status} — ${await res.text()}`)
+      
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "فشل في تحميل طلبات الزيارة"
+        })
+        return
+      }
 
       const json = await res.json()
       const block = json?.data ?? json
@@ -80,7 +95,11 @@ export default function VisitRequestsPage({ userId }: { userId: number }) {
       setMeta(metaBlock)
       setPage(metaBlock.current_page || pageNum)
     } catch (e: any) {
-      setError(e?.message || "حدث خطأ أثناء جلب البيانات")
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع أثناء تحميل طلبات الزيارة"
+      })
     } finally {
       setLoading(false)
     }
@@ -106,12 +125,6 @@ export default function VisitRequestsPage({ userId }: { userId: number }) {
         </CardHeader>
 
         <CardContent className="p-6 pt-0">
-          {error && (
-            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
           {loading ? (
             <p className="text-center py-10">جارٍ التحميل...</p>
           ) : (

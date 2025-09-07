@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePathname, useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/use-toast";
 
 // Simple Modal Component
 function Modal({ open, onClose, onAccept, onCancel }: any) {
@@ -27,6 +28,7 @@ function Modal({ open, onClose, onAccept, onCancel }: any) {
 export default function InvitationsPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
   const [invitations, setInvitations] = useState<any[]>([]);
   const [meta, setMeta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -40,15 +42,29 @@ export default function InvitationsPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("لم يتم العثور على التوكن");
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/invitations?per_page=5&page=${page}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      if (!res.ok) {
+        throw new Error(`فشل في جلب الدعوات (${res.status})`);
+      }
+
       const json = await res.json();
-      setInvitations(json.data.invitations);
-      setMeta(json.data.meta);
-    } catch (err) {
+      setInvitations(json.data.invitations || []);
+      setMeta(json.data.meta || null);
+    } catch (err: any) {
       console.error("خطأ في تحميل الدعوات:", err);
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: err?.message || "حدث خطأ في تحميل الدعوات"
+      });
     } finally {
       setLoading(false);
     }
@@ -65,6 +81,10 @@ export default function InvitationsPage() {
 
   const handleAccept = () => {
     if (selectedInvitation) {
+      toast({
+        title: "جاري المعالجة",
+        description: "جاري تأكيد قبول الدعوة..."
+      });
       router.push(`${pathname}/${selectedInvitation.id}/accept`);
       setModalOpen(false);
       setSelectedInvitation(null);
@@ -73,6 +93,10 @@ export default function InvitationsPage() {
 
   const handleCancel = () => {
     if (selectedInvitation) {
+      toast({
+        title: "جاري المعالجة",
+        description: "جاري إلغاء الدعوة..."
+      });
       router.push(`${pathname}/${selectedInvitation.id}/cancel`);
       setModalOpen(false);
       setSelectedInvitation(null);

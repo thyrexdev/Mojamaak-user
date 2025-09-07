@@ -6,18 +6,28 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Eye, EyeOff, User } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function ProfilePage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [showPassword, setShowPassword] = useState(false)
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const token = localStorage.getItem("token")
+        if (!token) {
+          toast({
+            variant: "destructive",
+            title: "خطأ",
+            description: "لم يتم العثور على رمز الدخول"
+          })
+          return
+        }
+
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/profile`,
           {
@@ -26,13 +36,21 @@ export default function ProfilePage() {
         )
 
         if (res.status === 403) {
-          setError("🚫 غير مصرح لك بمشاهدة هذه الصفحة")
+          toast({
+            variant: "destructive",
+            title: "خطأ",
+            description: "🚫 غير مصرح لك بمشاهدة هذه الصفحة"
+          })
           setLoading(false)
           return
         }
 
         if (!res.ok) {
-          setError("❌ حصل خطأ أثناء تحميل البيانات")
+          toast({
+            variant: "destructive",
+            title: "خطأ",
+            description: "❌ حصل خطأ أثناء تحميل البيانات"
+          })
           setLoading(false)
           return
         }
@@ -40,8 +58,11 @@ export default function ProfilePage() {
         const json = await res.json()
         setProfile(json.data)
       } catch (err) {
-        setError("⚠️ خطأ في الاتصال بالسيرفر")
-        console.error("خطأ في تحميل البروفايل:", err)
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "⚠️ خطأ في الاتصال بالسيرفر"
+        })
       } finally {
         setLoading(false)
       }
@@ -50,7 +71,6 @@ export default function ProfilePage() {
   }, [])
 
   if (loading) return <div className="p-6">⏳ جاري التحميل...</div>
-  if (error) return <div className="p-6 text-red-500">{error}</div>
   if (!profile) return <div className="p-6">⚠️ لا توجد بيانات بروفايل</div>
 
   const profileData = [

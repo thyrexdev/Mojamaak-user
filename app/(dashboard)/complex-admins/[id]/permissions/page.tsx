@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function UpdatePermissionsPage() {
   const { id } = useParams();
+  const { toast } = useToast();
   const [permissions, setPermissions] = useState<string[]>([]);
-  const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   const allPermissions = [
@@ -43,9 +44,21 @@ export default function UpdatePermissionsPage() {
         }
       );
       const data = await res.json();
-      setResponse(data);
+      
+      if (!res.ok) {
+        throw new Error(data.message || "حدث خطأ أثناء تحديث الصلاحيات");
+      }
+
+      toast({
+        title: "نجاح",
+        description: "تم تحديث الصلاحيات بنجاح",
+      });
     } catch (error) {
-      setResponse({ error: "Something went wrong" });
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء تحديث الصلاحيات",
+      });
     } finally {
       setLoading(false);
     }
@@ -85,19 +98,6 @@ export default function UpdatePermissionsPage() {
           </Button>
         </CardContent>
       </Card>
-
-      {response && (
-        <Card className="shadow-md rounded-2xl bg-white">
-          <CardHeader>
-            <CardTitle className="text-lg">الاستجابة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="bg-gray-100 p-4 rounded-xl text-sm overflow-x-auto">
-              {JSON.stringify(response, null, 2)}
-            </pre>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

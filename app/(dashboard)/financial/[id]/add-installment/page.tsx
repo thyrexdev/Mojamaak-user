@@ -5,6 +5,7 @@ import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { useToast } from "@/components/ui/use-toast"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
@@ -12,7 +13,7 @@ export default function AddInstallmentPage() {
   const [amount, setAmount] = useState("")
   const [paymentDate, setPaymentDate] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const { toast } = useToast()
 
   const router = useRouter()
   const params = useParams()
@@ -20,7 +21,6 @@ export default function AddInstallmentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("") // Reset error
     setLoading(true)
 
     try {
@@ -39,13 +39,20 @@ export default function AddInstallmentPage() {
 
       if (!response.ok) {
         const errText = await response.text()
-        console.error("API Error:", errText)
-        throw new Error("Échec de la requête")
+        throw new Error(errText)
       }
 
+      toast({
+        title: "تم بنجاح",
+        description: "تمت إضافة القسط بنجاح",
+      })
       router.push(`/financial`)
     } catch (error) {
-      setError("حدث خطأ أثناء إضافة القسط. الرجاء التحقق من البيانات أو المحاولة لاحقًا.")
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ أثناء إضافة القسط. الرجاء التحقق من البيانات أو المحاولة لاحقًا.",
+      })
     } finally {
       setLoading(false)
     }
@@ -76,9 +83,6 @@ export default function AddInstallmentPage() {
             required
           />
         </div>
-        {error && (
-          <div className="text-red-600 text-sm text-center">{error}</div>
-        )}
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "جاري الإضافة..." : "إضافة"}
         </Button>

@@ -5,10 +5,12 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function PaymentDetailsPage() {
   const { id } = useParams()
   const router = useRouter()
+  const { toast } = useToast()
   const [payment, setPayment] = useState<any>(null)
   const [status, setStatus] = useState<string>("")
   const [loading, setLoading] = useState(false)
@@ -27,7 +29,11 @@ export default function PaymentDetailsPage() {
         setPayment(json.data)
         setStatus(json.data?.status || "")
       } catch (err) {
-        console.error("خطأ في تحميل تفاصيل الدفعة:", err)
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "حدث خطأ أثناء تحميل تفاصيل الدفعة",
+        })
       }
     }
     if (id) fetchPayment()
@@ -50,8 +56,16 @@ export default function PaymentDetailsPage() {
       )
       // Update UI locally
       setPayment((prev: any) => ({ ...prev, status }))
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث حالة الدفعة بنجاح",
+      })
     } catch (err) {
-      console.error("فشل تحديث الحالة:", err)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "فشل تحديث حالة الدفعة",
+      })
     } finally {
       setLoading(false)
     }

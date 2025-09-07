@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Table,
   TableBody,
@@ -36,6 +37,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function MaintenancePage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -43,7 +45,14 @@ export default function MaintenancePage() {
   const fetchCompanies = async () => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) throw new Error("Aucun token trouvé");
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول",
+        });
+        return;
+      }
 
       const res = await fetch(
         `${API_BASE_URL}/api/dashboard/complex-admin/maintenance-companies?per_page=10&page=${page}`,
@@ -54,7 +63,10 @@ export default function MaintenancePage() {
         }
       );
 
-      if (!res.ok) throw new Error("Erreur de chargement des sociétés");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "فشل في تحميل بيانات الشركات");
+      }
 
       const json = await res.json();
       const data = json?.data?.MaintenanceCompanies || [];
@@ -63,7 +75,11 @@ export default function MaintenancePage() {
       setCompanies(data);
       setTotalPages(totalPages);
     } catch (error) {
-      console.error("Erreur lors du chargement des sociétés :", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "حدث خطأ في تحميل قائمة الشركات",
+      });
     }
   };
 

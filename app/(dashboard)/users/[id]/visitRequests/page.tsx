@@ -5,9 +5,11 @@ import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function VisitRequestsPage() {
   const { id } = useParams()
+  const { toast } = useToast()
   const [requests, setRequests] = useState<any[]>([])
   const [meta, setMeta] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -17,15 +19,38 @@ export default function VisitRequestsPage() {
     try {
       setLoading(true)
       const token = localStorage.getItem("token")
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول"
+        })
+        return
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/users/${id}/visit-requests?page=${page}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
+
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "فشل في تحميل طلبات الزيارة"
+        })
+        return
+      }
+
       const json = await res.json()
       setRequests(json.data.visit_requests)
       setMeta(json.data.meta)
     } catch (err) {
-      console.error("خطأ في تحميل طلبات الزيارة:", err)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع أثناء تحميل طلبات الزيارة"
+      })
     } finally {
       setLoading(false)
     }

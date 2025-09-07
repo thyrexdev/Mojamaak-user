@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, Mail, User } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
@@ -19,14 +20,13 @@ type Profile = {
 
 export default function EditProfilePage() {
   const router = useRouter()
+  const { toast } = useToast()
 
   // Profile states
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
-  const [profileMsg, setProfileMsg] = useState<string | null>(null)
-  const [profileErr, setProfileErr] = useState<string | null>(null)
 
   // Password states
   const [showPassword, setShowPassword] = useState(false)
@@ -35,8 +35,6 @@ export default function EditProfilePage() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [pwdSaving, setPwdSaving] = useState(false)
-  const [pwdMsg, setPwdMsg] = useState<string | null>(null)
-  const [pwdErr, setPwdErr] = useState<string | null>(null)
 
   // Load profile from API (fallback: localStorage)
   useEffect(() => {
@@ -58,8 +56,13 @@ export default function EditProfilePage() {
           setEmail(data.email ?? "")
           localStorage.setItem("admin", JSON.stringify(data))
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error(e)
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: e?.message || "حدث خطأ في تحميل البيانات"
+        })
         // fallback للـ localStorage
         const cached = localStorage.getItem("admin")
         if (cached) {
@@ -76,8 +79,6 @@ export default function EditProfilePage() {
 
   // Save profile (name/email)
   const handleSaveProfile = async () => {
-    setProfileMsg(null)
-    setProfileErr(null)
     setSaving(true)
     try {
       const token = localStorage.getItem("token")
@@ -100,10 +101,17 @@ export default function EditProfilePage() {
       if (updated) {
         localStorage.setItem("admin", JSON.stringify(updated))
       }
-      setProfileMsg("تم حفظ البيانات بنجاح")
+      toast({
+        title: "نجاح",
+        description: "تم حفظ البيانات بنجاح",
+      })
     } catch (e: any) {
       console.error(e)
-      setProfileErr(e?.message || "حدث خطأ غير متوقع")
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: e?.message || "حدث خطأ غير متوقع"
+      })
     } finally {
       setSaving(false)
     }
@@ -111,15 +119,20 @@ export default function EditProfilePage() {
 
   // Change password
   const handleChangePassword = async () => {
-    setPwdMsg(null)
-    setPwdErr(null)
-
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setPwdErr("من فضلك املأ جميع الحقول")
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "من فضلك املأ جميع الحقول"
+      })
       return
     }
     if (newPassword !== confirmPassword) {
-      setPwdErr("تأكيد كلمة المرور غير مطابق")
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "تأكيد كلمة المرور غير مطابق"
+      })
       return
     }
 
@@ -144,13 +157,20 @@ export default function EditProfilePage() {
 
       if (!res.ok) throw new Error(`فشل تغيير كلمة المرور (${res.status})`)
 
-      setPwdMsg("تم تغيير كلمة المرور بنجاح")
+      toast({
+        title: "نجاح",
+        description: "تم تغيير كلمة المرور بنجاح"
+      })
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
     } catch (e: any) {
       console.error(e)
-      setPwdErr(e?.message || "حدث خطأ غير متوقع")
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: e?.message || "حدث خطأ غير متوقع"
+      })
     } finally {
       setPwdSaving(false)
     }
@@ -194,9 +214,6 @@ export default function EditProfilePage() {
                 disabled={loading || saving}
               />
             </div>
-
-            {profileMsg && <p className="text-green-600 text-sm">{profileMsg}</p>}
-            {profileErr && <p className="text-red-600 text-sm">{profileErr}</p>}
 
             <div className="flex justify-end gap-3 pt-2">
               <Button variant="outline" onClick={handleCancel}>إلغاء</Button>
@@ -251,9 +268,6 @@ export default function EditProfilePage() {
                 {showConfirmPassword ? <EyeOff /> : <Eye />}
               </Button>
             </div>
-
-            {pwdMsg && <p className="text-green-600 text-sm">{pwdMsg}</p>}
-            {pwdErr && <p className="text-red-600 text-sm">{pwdErr}</p>}
 
             <div className="flex justify-end gap-3 pt-2">
               <Button variant="outline" onClick={handleCancel}>إلغاء</Button>

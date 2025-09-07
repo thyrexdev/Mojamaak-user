@@ -13,11 +13,13 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function UserDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,14 +27,37 @@ export default function UserDetailsPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول"
+        });
+        return;
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/users/${id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "فشل في تحميل بيانات المستخدم"
+        });
+        return;
+      }
+
       const json = await res.json();
       setUser(json.data);
     } catch (err) {
-      console.error("خطأ في تحميل المستخدم:", err);
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع أثناء تحميل بيانات المستخدم"
+      });
     } finally {
       setLoading(false);
     }

@@ -5,10 +5,12 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function ComplexAdminDetailsPage() {
   const { id } = useParams()
   const router = useRouter()
+  const { toast } = useToast()
   const [admin, setAdmin] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [unlinking, setUnlinking] = useState(false)
@@ -21,10 +23,17 @@ export default function ComplexAdminDetailsPage() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/complex-admins/${id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
+      if (!res.ok) {
+        throw new Error("فشل في تحميل بيانات الإداري")
+      }
       const json = await res.json()
       setAdmin(json.data)
     } catch (err) {
-      console.error("خطأ في تحميل الإداري:", err)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ في تحميل بيانات الإداري",
+      })
     } finally {
       setLoading(false)
     }
@@ -46,12 +55,24 @@ export default function ComplexAdminDetailsPage() {
       )
       const json = await res.json()
       if (json.code === 200) {
+        toast({
+          title: "نجاح",
+          description: "تم إلغاء ربط الإداري بنجاح",
+        })
         await fetchAdmin()
       } else {
-        console.error("فشل في إلغاء الربط:", json)
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: json.message || "فشل في إلغاء الربط",
+        })
       }
     } catch (err) {
-      console.error("خطأ في إلغاء الربط:", err)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ أثناء إلغاء الربط",
+      })
     } finally {
       setUnlinking(false)
     }

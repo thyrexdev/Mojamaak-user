@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Edit, Trash2, Search, SlidersHorizontal } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function UsersPage() {
   const pathname = usePathname()
   const router = useRouter()
+  const { toast } = useToast()
   const [users, setUsers] = useState<any[]>([])
   const [meta, setMeta] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -20,15 +22,38 @@ export default function UsersPage() {
     try {
       setLoading(true)
       const token = localStorage.getItem("token")
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول"
+        })
+        return
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/users?per_page=10&page=${page}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
+
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "فشل في تحميل قائمة المستخدمين"
+        })
+        return
+      }
+
       const json = await res.json()
       setUsers(json.data.users)
       setMeta(json.data.meta)
     } catch (err) {
-      console.error("خطأ في تحميل المستخدمين:", err)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع أثناء تحميل المستخدمين"
+      })
     } finally {
       setLoading(false)
     }

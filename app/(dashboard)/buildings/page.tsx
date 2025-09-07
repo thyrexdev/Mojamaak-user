@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 import { Edit, Plus, Search, SlidersHorizontal, Trash2 } from "lucide-react";
 
 type Apartment = {
@@ -56,6 +57,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function BuildingsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [buildings, setBuildings] = useState<BuildingFromApi[]>([]);
   const [meta, setMeta] = useState<Meta | null>(null);
@@ -68,7 +70,14 @@ export default function BuildingsPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      if (!token) throw new Error("لا يوجد رمز دخول");
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول",
+        });
+        return;
+      }
 
       // build query params
       const params = new URLSearchParams();
@@ -83,8 +92,8 @@ export default function BuildingsPage() {
       );
 
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(`خطأ التحميل ${res.status}: ${t}`);
+        const errorData = await res.json();
+        throw new Error(errorData.message || "فشل في تحميل قائمة المباني");
       }
 
       const json = await res.json();
@@ -95,8 +104,11 @@ export default function BuildingsPage() {
       setPage(m?.current_page ?? targetPage);
       setExpandedId(null);
     } catch (error) {
-      console.error("Erreur lors du chargement des المباني:", error);
-      alert("تعذر تحميل المباني");
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "حدث خطأ في تحميل قائمة المباني",
+      });
     } finally {
       setLoading(false);
     }
@@ -112,7 +124,14 @@ export default function BuildingsPage() {
     if (!yes) return;
     try {
       const token = localStorage.getItem("token");
-      if (!token) throw new Error("لا يوجد رمز دخول");
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول",
+        });
+        return;
+      }
 
       const res = await fetch(
         `${API_BASE_URL}/api/dashboard/complex-admin/buildings/${buildingId}`,
@@ -120,15 +139,21 @@ export default function BuildingsPage() {
       );
 
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(`فشل الحذف ${res.status}: ${t}`);
+        const errorData = await res.json();
+        throw new Error(errorData.message || "فشل في حذف المبنى");
       }
 
-      alert("تم حذف المبنى بنجاح");
+      toast({
+        title: "نجاح",
+        description: "تم حذف المبنى بنجاح",
+      });
       fetchBuildings(page);
-    } catch (err) {
-      console.error(err);
-      alert("حدث خطأ أثناء الحذف");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء حذف المبنى",
+      });
     }
   };
 
@@ -138,7 +163,14 @@ export default function BuildingsPage() {
 
     try {
       const token = localStorage.getItem("token");
-      if (!token) throw new Error("لا يوجد رمز دخول");
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول",
+        });
+        return;
+      }
 
       // Endpoint: POST update with form-data delete_apartments[]
       const form = new FormData();
@@ -154,15 +186,21 @@ export default function BuildingsPage() {
       );
 
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(`فشل في حذف الشقة: ${res.status} → ${t}`);
+        const errorData = await res.json();
+        throw new Error(errorData.message || "فشل في حذف الشقة");
       }
 
-      alert("تم حذف الشقة");
+      toast({
+        title: "نجاح",
+        description: "تم حذف الشقة بنجاح",
+      });
       fetchBuildings(page);
-    } catch (err) {
-      console.error(err);
-      alert("حدث خطأ أثناء محاولة حذف الشقة");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء حذف الشقة",
+      });
     }
   };
 

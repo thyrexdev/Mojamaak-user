@@ -5,6 +5,7 @@ import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/components/ui/use-toast"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
@@ -75,6 +76,7 @@ const statusBadge = (s: string) =>
 export default function ResidentDetailsPage() {
   const params = useParams<{ id: string }>()
   const userId = params?.id
+  const { toast } = useToast()
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
@@ -93,7 +95,14 @@ export default function ResidentDetailsPage() {
 
   const authHeader = () => {
     const token = localStorage.getItem("token")
-    if (!token) throw new Error("Token not found")
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "لم يتم العثور على رمز الدخول"
+      })
+      throw new Error("Token not found")
+    }
     return { Authorization: `Bearer ${token}` }
   }
 
@@ -104,12 +113,23 @@ export default function ResidentDetailsPage() {
         `${API_BASE_URL}/api/dashboard/complex-admin/users/${userId}`,
         { headers: authHeader() }
       )
-      if (!res.ok) throw new Error(`API ${res.status} — ${await res.text()}`)
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "فشل في تحميل بيانات الساكن"
+        })
+        return
+      }
       const json = await res.json()
       const data = json?.data ?? json
       setProfile(data)
     } catch (e) {
-      console.error(e)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع أثناء تحميل بيانات الساكن"
+      })
     } finally {
       setLoadingProfile(false)
     }
@@ -122,13 +142,24 @@ export default function ResidentDetailsPage() {
         `${API_BASE_URL}/api/dashboard/complex-admin/users/${userId}/maintenance-requests?per_page=${perPage}&page=${page}`,
         { headers: authHeader() }
       )
-      if (!res.ok) throw new Error(`API ${res.status} — ${await res.text()}`)
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "فشل في تحميل طلبات الصيانة"
+        })
+        return
+      }
       const json = await res.json()
       const block = json?.data ?? json
       setMaint(block?.maintenance_requests ?? [])
       setMaintMeta(block?.meta ?? {})
     } catch (e) {
-      console.error(e)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع أثناء تحميل طلبات الصيانة"
+      })
     } finally {
       setLoadingMaint(false)
     }
@@ -141,13 +172,24 @@ export default function ResidentDetailsPage() {
         `${API_BASE_URL}/api/dashboard/complex-admin/users/${userId}/visit-requests?per_page=${perPage}&page=${page}`,
         { headers: authHeader() }
       )
-      if (!res.ok) throw new Error(`API ${res.status} — ${await res.text()}`)
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "فشل في تحميل طلبات الزيارة"
+        })
+        return
+      }
       const json = await res.json()
       const block = json?.data ?? json
       setVisits(block?.visit_requests ?? [])
       setVisitMeta(block?.meta ?? {})
     } catch (e) {
-      console.error(e)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع أثناء تحميل طلبات الزيارة"
+      })
     } finally {
       setLoadingVisits(false)
     }

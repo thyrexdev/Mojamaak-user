@@ -1,19 +1,55 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function AcceptInvitationPage() {
+  const router = useRouter();
+  const { toast } = useToast();
   const [token, setToken] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
-  const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  const validateForm = () => {
+    if (!token || !name || !password || !passwordConfirmation) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "يرجى ملء جميع الحقول المطلوبة"
+      });
+      return false;
+    }
+
+    if (password !== passwordConfirmation) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "كلمة المرور وتأكيد كلمة المرور غير متطابقين"
+      });
+      return false;
+    }
+
+    if (password.length < 8) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "يجب أن تكون كلمة المرور 8 أحرف على الأقل"
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async () => {
+    if (!validateForm()) return;
+
     setLoading(true);
     try {
       const res = await fetch(
@@ -30,15 +66,38 @@ export default function AcceptInvitationPage() {
           }),
         }
       );
+
+      if (!res.ok) {
+        throw new Error(`فشل في قبول الدعوة (${res.status})`);
+      }
+
       const data = await res.json();
-      setResponse(data);
-    } catch (error) {
-      setResponse({ error: "Something went wrong" });
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: "نجاح",
+        description: "تم قبول الدعوة بنجاح"
+      });
+
+      // Navigate back to invitations list after successful acceptance
+      setTimeout(() => {
+        router.push("/invitations");
+      }, 2000);
+
+    } catch (error: any) {
+      console.error("Error accepting invitation:", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: error?.message || "حدث خطأ في قبول الدعوة"
+      });
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
       <Card className="shadow-md rounded-2xl">
@@ -86,28 +145,23 @@ export default function AcceptInvitationPage() {
             />
           </div>
 
-          <Button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full rounded-xl"
-          >
-            {loading ? "Sending..." : "Send Request"}
-          </Button>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/invitations")}
+              disabled={loading}
+            >
+              إلغاء
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? "جاري المعالجة..." : "قبول الدعوة"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
-
-      {response && (
-        <Card className="shadow-md rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-lg">Response</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="bg-gray-100 p-4 rounded-xl text-sm overflow-x-auto">
-              {JSON.stringify(response, null, 2)}
-            </pre>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

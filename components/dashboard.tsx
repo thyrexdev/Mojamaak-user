@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
 import Image from "next/image"
+import { useToast } from "@/components/ui/use-toast"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
@@ -30,11 +31,11 @@ type Complex = {
 }
 
 export default function CompoundProfilePage() {
+  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [complex, setComplex] = useState<Complex | null>(null)
   const [formData, setFormData] = useState<FormData | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const fetchComplex = async () => {
     try {
@@ -45,7 +46,11 @@ export default function CompoundProfilePage() {
       const json = await res.json()
       setComplex(json.data || null)
     } catch (e) {
-      setErrorMsg("حدث خطأ أثناء تحميل البيانات")
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ أثناء تحميل البيانات"
+      })
     } finally {
       setLoading(false)
     }
@@ -117,18 +122,29 @@ export default function CompoundProfilePage() {
       })
 
       if (res.ok) {
-        alert("✅ تم التحديث بنجاح")
+        toast({
+          title: "✅ نجاح",
+          description: "تم التحديث بنجاح",
+        })
         fetchComplex()
       } else {
-        alert("❌ فشل في التحديث")
+        toast({
+          variant: "destructive",
+          title: "❌ خطأ",
+          description: "فشل في التحديث",
+        })
       }
     } catch (e) {
-      alert("❌ خطأ أثناء التحديث")
+      toast({
+        variant: "destructive",
+        title: "❌ خطأ",
+        description: "خطأ أثناء التحديث",
+      })
     }
   }
 
   if (loading) return <p className="p-6">جارٍ التحميل...</p>
-  if (!complex) return <p className="p-6 text-red-500">{errorMsg || "لا توجد بيانات"}</p>
+  if (!complex) return <p className="p-6 text-red-500">{"لا توجد بيانات"}</p>
 
 return (
   <div className="p-6 font-arabic space-y-6" dir="rtl">

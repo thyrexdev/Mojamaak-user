@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 
 type ReqDetail = {
   id: number;
@@ -43,6 +44,7 @@ const statusLabel = (s: ReqDetail["status"]) =>
 
 export default function MaintenanceRequestDetailPage() {
   const params = useParams();
+  const { toast } = useToast();
   const [request, setRequest] = useState<ReqDetail | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,7 @@ export default function MaintenanceRequestDetailPage() {
   const fetchRequest = async () => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) throw new Error("No token found");
+      if (!token) throw new Error("لم يتم العثور على التوكن");
 
       const [reqRes, compRes] = await Promise.all([
         fetch(`/api/dashboard/complex-admin/maintenance-requests/${params.id}`, {
@@ -62,12 +64,24 @@ export default function MaintenanceRequestDetailPage() {
         }),
       ]);
 
+      if (!reqRes.ok) {
+        throw new Error(`فشل في جلب تفاصيل طلب الصيانة (${reqRes.status})`);
+      }
+      if (!compRes.ok) {
+        throw new Error(`فشل في جلب قائمة الشركات (${compRes.status})`);
+      }
+
       const reqData = (await reqRes.json())?.data ?? null;
       const compData: Company[] = (await compRes.json())?.data?.MaintenanceCompanies ?? [];
       setRequest(reqData);
       setCompanies(compData);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: err?.message || "حدث خطأ في جلب البيانات"
+      });
     } finally {
       setLoading(false);
     }
@@ -78,9 +92,23 @@ export default function MaintenanceRequestDetailPage() {
   }, [params.id]);
 
   const handleAssignAndConfirm = async () => {
-    if (!request || !selectedCompany) return;
+    if (!request || !selectedCompany) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "يجب اختيار شركة الصيانة"
+      });
+      return;
+    }
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "لم يتم العثور على التوكن"
+      });
+      return;
+    }
 
     try {
       const company = companies.find(c => String(c.id) === selectedCompany);
@@ -91,23 +119,43 @@ export default function MaintenanceRequestDetailPage() {
       const formData = new FormData();
       formData.append("maintenance_company_id", selectedCompany);
 
-      await fetch(`/api/dashboard/complex-admin/maintenance-requests/${request.id}/assign-company`, {
+      const res = await fetch(`/api/dashboard/complex-admin/maintenance-requests/${request.id}/assign-company`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
-      // تحديث الحالة مباشرة
-      await fetch(`/api/dashboard/complex-admin/maintenance-requests/${request.id}/status`, {
+      if (!res.ok) {
+        // Reset the optimistic update if the request fails
+        setRequest(prevRequest => ({ ...prevRequest!, maintenance_company: undefined, status: "waiting" }));
+        throw new Error(`فشل في تعيين الشركة (${res.status})`);
+      }
+
+      // Update the status
+      const statusRes = await fetch(`/api/dashboard/complex-admin/maintenance-requests/${request.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: "confirmed" }),
       });
 
-      fetchRequest(); // refresh data
-    } catch (err) {
+      if (!statusRes.ok) {
+        throw new Error(`فشل في تحديث الحالة (${statusRes.status})`);
+      }
+
+      toast({
+        title: "نجاح",
+        description: "تم تعيين الشركة بنجاح"
+      });
+
+    } catch (err: any) {
       console.error(err);
-      fetchRequest(); // rollback
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: err?.message || "حدث خطأ في تعيين الشركة"
+      });
+      // Refresh data to ensure UI is in sync with server
+      fetchRequest();
     }
   };
 

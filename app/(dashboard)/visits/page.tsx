@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Table,
   TableBody,
@@ -45,6 +46,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 export default function VisitRequestsPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
   const [visits, setVisits] = useState<VisitRequest[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -52,7 +54,14 @@ export default function VisitRequestsPage() {
   const fetchVisits = async () => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) throw new Error("Aucun token trouvé");
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول"
+        });
+        return;
+      }
 
       const res = await fetch(
         `${API_BASE_URL}/api/dashboard/complex-admin/visit-requests?page=${page}&per_page=10`,
@@ -63,13 +72,24 @@ export default function VisitRequestsPage() {
         }
       );
 
-      if (!res.ok) throw new Error("Erreur lors du chargement des visites");
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "حدث خطأ أثناء تحميل طلبات الزيارة"
+        });
+        return;
+      }
 
       const json = await res.json();
       setVisits(json.data.visit_requests);
       setTotalPages(json.data.meta.total_pages);
     } catch (error) {
-      console.error("Erreur chargement visites :", error);
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع أثناء تحميل طلبات الزيارة"
+      });
     }
   };
 

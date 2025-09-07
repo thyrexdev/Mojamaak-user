@@ -5,6 +5,7 @@ import { useParams } from "next/navigation"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { useToast } from "@/components/ui/use-toast"
 
 type TranslationItem = {
   name: string
@@ -63,12 +64,20 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
 
 export default function CompanyDetailsPage() {
   const { id } = useParams()
-const [company, setCompany] = useState<Company | null>(null)
+  const { toast } = useToast()
+  const [company, setCompany] = useState<Company | null>(null)
 
   const fetchCompanyDetails = async () => {
     try {
       const token = localStorage.getItem("token")
-      if (!token) throw new Error("Aucun token trouvé")
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "خطأ",
+          description: "لم يتم العثور على رمز الدخول",
+        })
+        return
+      }
 
       const res = await fetch(
         `${API_BASE_URL}/api/dashboard/complex-admin/maintenance-companies/${id}`,
@@ -79,12 +88,19 @@ const [company, setCompany] = useState<Company | null>(null)
         }
       )
 
-      if (!res.ok) throw new Error("Échec du chargement des détails")
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.message || "فشل في تحميل تفاصيل الشركة")
+      }
 
       const json = await res.json()
       setCompany(json.data)
     } catch (error) {
-      console.error("Erreur lors du chargement des détails de la société :", error)
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "حدث خطأ في تحميل تفاصيل الشركة",
+      })
     }
   }
 
