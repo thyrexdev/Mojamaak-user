@@ -5,21 +5,44 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePathname, useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 // Simple Modal Component
-function Modal({ open, onClose, onAccept, onCancel }: any) {
+function Modal({ open, onClose, onAccept, onCancel, loading }: any) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg w-80 space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900">اختر الإجراء</h2>
-        <p className="text-gray-600">هل تريد قبول الدعوة أو إلغاؤها؟</p>
+      <div className="relative bg-white dark:bg-gray-800 p-6 rounded-xl w-80 space-y-4 shadow-xl">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          اختر الإجراء
+        </h2>
+        <p className="text-gray-600 dark:text-gray-300">
+          هل تريد قبول الدعوة أو إلغاؤها؟
+        </p>
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onCancel}>إلغاء</Button>
-          <Button onClick={onAccept}>قبول</Button>
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={loading}
+            className="rounded-lg"
+          >
+            {loading ? "جاري الإلغاء..." : "إلغاء"}
+          </Button>
+          <Button
+            onClick={onAccept}
+            disabled={loading}
+            className="rounded-lg"
+          >
+            {loading ? "جاري القبول..." : "قبول"}
+          </Button>
         </div>
-        <Button variant="ghost" className="absolute top-2 right-2" onClick={onClose}>✕</Button>
+        <Button
+          variant="ghost"
+          className="absolute top-2 right-2 text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-100"
+          onClick={onClose}
+        >
+          ✕
+        </Button>
       </div>
     </div>
   );
@@ -28,7 +51,6 @@ function Modal({ open, onClose, onAccept, onCancel }: any) {
 export default function InvitationsPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { toast } = useToast();
   const [invitations, setInvitations] = useState<any[]>([]);
   const [meta, setMeta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -37,34 +59,27 @@ export default function InvitationsPage() {
   // Modal state
   const [selectedInvitation, setSelectedInvitation] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
 
   const fetchInvitations = async (page: number) => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("لم يتم العثور على التوكن");
-      }
+      if (!token) throw new Error("لم يتم العثور على التوكن");
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/invitations?per_page=5&page=${page}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      if (!res.ok) {
-        throw new Error(`فشل في جلب الدعوات (${res.status})`);
-      }
+      if (!res.ok) throw new Error(`فشل في جلب الدعوات (${res.status})`);
 
       const json = await res.json();
       setInvitations(json.data.invitations || []);
       setMeta(json.data.meta || null);
     } catch (err: any) {
       console.error("خطأ في تحميل الدعوات:", err);
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: err?.message || "حدث خطأ في تحميل الدعوات"
-      });
+      toast.error(err?.message || "حدث خطأ في تحميل الدعوات");
     } finally {
       setLoading(false);
     }
@@ -79,87 +94,108 @@ export default function InvitationsPage() {
     setModalOpen(true);
   };
 
-  const handleAccept = () => {
-    if (selectedInvitation) {
-      toast({
-        title: "جاري المعالجة",
-        description: "جاري تأكيد قبول الدعوة..."
-      });
+  const handleAccept = async () => {
+    if (!selectedInvitation) return;
+    setModalLoading(true);
+    toast.info("جاري تأكيد قبول الدعوة...");
+    setTimeout(() => {
       router.push(`${pathname}/${selectedInvitation.id}/accept`);
       setModalOpen(false);
       setSelectedInvitation(null);
-    }
+      setModalLoading(false);
+    }, 1000);
   };
 
-  const handleCancel = () => {
-    if (selectedInvitation) {
-      toast({
-        title: "جاري المعالجة",
-        description: "جاري إلغاء الدعوة..."
-      });
+  const handleCancel = async () => {
+    if (!selectedInvitation) return;
+    setModalLoading(true);
+    toast.info("جاري إلغاء الدعوة...");
+    setTimeout(() => {
       router.push(`${pathname}/${selectedInvitation.id}/cancel`);
       setModalOpen(false);
       setSelectedInvitation(null);
-    }
+      setModalLoading(false);
+    }, 1000);
   };
 
-  if (loading) return <div className="p-6">جاري التحميل...</div>;
+  if (loading) {
+    return (
+      <div className="p-6 text-center text-gray-600 dark:text-gray-300">
+        ⏳ جاري التحميل...
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 font-arabic" dir="rtl">
-      <Card className="bg-white shadow-sm">
+    <div className="p-6 font-arabic min-h-screen bg-gray-50 dark:bg-gray-900" dir="rtl">
+      <Card className="bg-white dark:bg-gray-800 shadow-md rounded-2xl">
         <CardHeader className="p-6 pb-4">
-          <CardTitle className="text-lg font-semibold text-gray-900">
+          <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             إدارة الدعوات
           </CardTitle>
-          <p className="text-sm text-gray-500">عرض وتتبع الدعوات المرسلة للإداريين.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            عرض وتتبع الدعوات المرسلة للإداريين.
+          </p>
         </CardHeader>
 
         <CardContent className="p-6 pt-0">
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-50 text-sm">
-                <TableHead className="text-right text-gray-700">البريد الإلكتروني</TableHead>
-                <TableHead className="text-right text-gray-700">الحالة</TableHead>
-                <TableHead className="text-right text-gray-700">المجمع السكني</TableHead>
-                <TableHead className="text-right text-gray-700">تاريخ الإرسال</TableHead>
-                <TableHead className="text-right text-gray-700">ينتهي في</TableHead>
+              <TableRow className="bg-gray-50 dark:bg-gray-700/50 text-sm">
+                <TableHead className="text-right text-gray-700 dark:text-gray-200">البريد الإلكتروني</TableHead>
+                <TableHead className="text-right text-gray-700 dark:text-gray-200">الحالة</TableHead>
+                <TableHead className="text-right text-gray-700 dark:text-gray-200">المجمع السكني</TableHead>
+                <TableHead className="text-right text-gray-700 dark:text-gray-200">تاريخ الإرسال</TableHead>
+                <TableHead className="text-right text-gray-700 dark:text-gray-200">ينتهي في</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {invitations.map((inv) => (
-                <TableRow key={inv.id} className="cursor-pointer" onClick={() => handleRowClick(inv)}>
+                <TableRow
+                  key={inv.id}
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors"
+                  onClick={() => handleRowClick(inv)}
+                >
                   <TableCell className="text-right">{inv.email}</TableCell>
                   <TableCell className="text-right">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs ${
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
                         inv.status === "accepted"
-                          ? "bg-green-100 text-green-700"
+                          ? "bg-green-100 text-green-700 dark:bg-green-800/40 dark:text-green-300"
                           : inv.status === "pending"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-gray-100 text-gray-700"
+                          ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-800/40 dark:text-yellow-300"
+                          : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
                       }`}
                     >
                       {inv.status}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right">{inv.residential_complex?.name || "-"}</TableCell>
-                  <TableCell className="text-right">{new Date(inv.created_at).toLocaleString("ar-EG")}</TableCell>
-                  <TableCell className="text-right">{new Date(inv.expires_at).toLocaleString("ar-EG")}</TableCell>
+                  <TableCell className="text-right">
+                    {inv.residential_complex?.name || "-"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {new Date(inv.created_at).toLocaleString("ar-EG")}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {new Date(inv.expires_at).toLocaleString("ar-EG")}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
 
           {meta && (
-            <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-              <span>الصفحة {meta.current_page} من {meta.total_pages}</span>
+            <div className="flex items-center justify-between mt-4 text-sm text-gray-600 dark:text-gray-400">
+              <span>
+                الصفحة {meta.current_page} من {meta.total_pages}
+              </span>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={!meta.prev_page_url}
+                  className="rounded-lg"
                 >
                   السابق
                 </Button>
@@ -168,6 +204,7 @@ export default function InvitationsPage() {
                   size="sm"
                   onClick={() => setPage((p) => p + 1)}
                   disabled={!meta.next_page_url}
+                  className="rounded-lg"
                 >
                   التالي
                 </Button>
@@ -182,6 +219,7 @@ export default function InvitationsPage() {
         onClose={() => setModalOpen(false)}
         onAccept={handleAccept}
         onCancel={handleCancel}
+        loading={modalLoading}
       />
     </div>
   );

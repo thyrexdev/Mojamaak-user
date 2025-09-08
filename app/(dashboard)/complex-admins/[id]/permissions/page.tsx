@@ -4,11 +4,10 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 export default function UpdatePermissionsPage() {
   const { id } = useParams();
-  const { toast } = useToast();
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -44,45 +43,37 @@ export default function UpdatePermissionsPage() {
         }
       );
       const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.message || "حدث خطأ أثناء تحديث الصلاحيات");
-      }
 
-      toast({
-        title: "نجاح",
-        description: "تم تحديث الصلاحيات بنجاح",
-      });
+      if (!res.ok) throw new Error(data.message || "حدث خطأ أثناء تحديث الصلاحيات");
+
+      toast.success("تم تحديث الصلاحيات بنجاح");
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: error instanceof Error ? error.message : "حدث خطأ أثناء تحديث الصلاحيات",
-      });
+      toast.error(error instanceof Error ? error.message : "حدث خطأ أثناء تحديث الصلاحيات");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6 font-arabic" dir="rtl">
-      <Card className="shadow-md rounded-2xl bg-white">
+    <div className="max-w-3xl mx-auto p-6 space-y-6 font-arabic dark:bg-gray-900 dark:text-gray-200 min-h-screen" dir="rtl">
+      <Card className="shadow-md rounded-2xl bg-white dark:bg-gray-800">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold">
+          <CardTitle className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             تحديث صلاحيات الإداري
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {allPermissions.map((perm) => (
               <label
                 key={perm}
-                className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg cursor-pointer"
+                className="flex items-center gap-2 p-3 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
               >
                 <input
                   type="checkbox"
                   checked={permissions.includes(perm)}
                   onChange={() => togglePermission(perm)}
+                  className="w-4 h-4 accent-primary"
                 />
                 <span className="text-sm">{perm}</span>
               </label>

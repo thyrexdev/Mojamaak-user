@@ -3,61 +3,37 @@
 import { useEffect, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 export default function UserDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [btnLoading, setBtnLoading] = useState(false);
 
   const fetchUser = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      if (!token) {
-        toast({
-          variant: "destructive",
-          title: "خطأ",
-          description: "لم يتم العثور على رمز الدخول"
-        });
-        return;
-      }
+      if (!token) throw new Error("لم يتم العثور على رمز الدخول");
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/users/${id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      if (!res.ok) {
-        toast({
-          variant: "destructive",
-          title: "خطأ",
-          description: "فشل في تحميل بيانات المستخدم"
-        });
-        return;
-      }
+      if (!res.ok) throw new Error("فشل في تحميل بيانات المستخدم");
 
       const json = await res.json();
       setUser(json.data);
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "حدث خطأ غير متوقع أثناء تحميل بيانات المستخدم"
-      });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "حدث خطأ أثناء تحميل بيانات المستخدم");
     } finally {
       setLoading(false);
     }
@@ -67,32 +43,43 @@ export default function UserDetailsPage() {
     if (id) fetchUser();
   }, [id]);
 
-  if (loading) return <div className="p-6">جاري التحميل...</div>;
-  if (!user) return <div className="p-6">لم يتم العثور على المستخدم</div>;
+  const handleNavigate = (path: string) => {
+    setBtnLoading(true);
+    router.push(`${pathname}/${path}`);
+    setBtnLoading(false);
+  };
+
+  if (loading) return <div className="p-6 text-center text-gray-500 dark:text-gray-400">جاري التحميل...</div>;
+  if (!user) return <div className="p-6 text-center text-red-500">لم يتم العثور على المستخدم</div>;
 
   return (
-    <div className="p-6 font-arabic" dir="rtl">
-      <Card className="bg-white shadow-sm mb-6">
-        <CardHeader>
+    <div className="p-6 font-arabic dark:bg-gray-900 dark:text-gray-200 min-h-screen" dir="rtl">
+      {/* User Info */}
+      <Card className="bg-white dark:bg-gray-800 shadow-md mb-6 rounded-lg">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <CardTitle className="text-lg font-semibold text-gray-900">
+            <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               بيانات المستخدم
             </CardTitle>
           </div>
-          <Button
-            className="text-white bg-primary hover:bg-primary/90"
-            onClick={() => router.push(`${pathname}/maintenanceRequests`)}
-          >
-            <Plus className="w-4 h-4 ml-2" />
-            طلبات الصيانة
-          </Button>
-          <Button
-            className="text-white bg-primary hover:bg-primary/90"
-            onClick={() => router.push(`${pathname}/visitRequests`)}
-          >
-            <Plus className="w-4 h-4 ml-2" />
-            طلبات الزيارة
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="default"
+              className="flex items-center gap-1"
+              onClick={() => handleNavigate("maintenanceRequests")}
+              disabled={btnLoading}
+            >
+              <Plus className="w-4 h-4" /> طلبات الصيانة
+            </Button>
+            <Button
+              variant="default"
+              className="flex items-center gap-1"
+              onClick={() => handleNavigate("visitRequests")}
+              disabled={btnLoading}
+            >
+              <Plus className="w-4 h-4" /> طلبات الزيارة
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-2">
           <p>
@@ -115,62 +102,44 @@ export default function UserDetailsPage() {
         </CardContent>
       </Card>
 
-      <Card className="bg-white shadow-sm">
+      {/* User Apartments */}
+      <Card className="bg-white dark:bg-gray-800 shadow-md rounded-lg">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-900">
+          <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             الوحدات المرتبطة
           </CardTitle>
         </CardHeader>
         <CardContent>
           {user.apartments && user.apartments.length > 0 ? (
-            <Table>
+            <Table className="dark:divide-gray-700">
               <TableHeader>
-                <TableRow className="bg-gray-50 text-sm">
-                  <TableHead className="text-right text-gray-700">
-                    رقم الوحدة
-                  </TableHead>
-                  <TableHead className="text-right text-gray-700">
-                    الدور
-                  </TableHead>
-                  <TableHead className="text-right text-gray-700">
-                    النوع
-                  </TableHead>
-                  <TableHead className="text-right text-gray-700">
-                    السعر
-                  </TableHead>
-                  <TableHead className="text-right text-gray-700">
-                    العنوان
-                  </TableHead>
-                  <TableHead className="text-right text-gray-700">
-                    متاح؟
-                  </TableHead>
+                <TableRow className="bg-gray-50 text-sm dark:bg-gray-700">
+                  <TableHead className="text-right text-gray-700 dark:text-gray-200">رقم الوحدة</TableHead>
+                  <TableHead className="text-right text-gray-700 dark:text-gray-200">الدور</TableHead>
+                  <TableHead className="text-right text-gray-700 dark:text-gray-200">النوع</TableHead>
+                  <TableHead className="text-right text-gray-700 dark:text-gray-200">السعر</TableHead>
+                  <TableHead className="text-right text-gray-700 dark:text-gray-200">العنوان</TableHead>
+                  <TableHead className="text-right text-gray-700 dark:text-gray-200">متاح؟</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {user.apartments.map((apt: any) => (
-                  <TableRow key={apt.id}>
+                  <TableRow
+                    key={apt.id}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                  >
                     <TableCell className="text-right">{apt.number}</TableCell>
-                    <TableCell className="text-right">
-                      {apt.floor_number}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {apt.listing_type === "rent" ? "إيجار" : "تمليك"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {apt.price} ج.م
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {apt.building?.address}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {apt.is_available ? "✅ متاح" : "❌ غير متاح"}
-                    </TableCell>
+                    <TableCell className="text-right">{apt.floor_number}</TableCell>
+                    <TableCell className="text-right">{apt.listing_type === "rent" ? "إيجار" : "تمليك"}</TableCell>
+                    <TableCell className="text-right">{apt.price} ج.م</TableCell>
+                    <TableCell className="text-right">{apt.building?.address}</TableCell>
+                    <TableCell className="text-right">{apt.is_available ? "✅ متاح" : "❌ غير متاح"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           ) : (
-            <p className="text-gray-500">لا توجد وحدات مرتبطة بهذا المستخدم.</p>
+            <p className="text-gray-500 dark:text-gray-400">لا توجد وحدات مرتبطة بهذا المستخدم.</p>
           )}
         </CardContent>
       </Card>

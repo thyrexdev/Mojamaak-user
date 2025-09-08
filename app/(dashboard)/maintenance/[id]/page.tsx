@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 type ReqDetail = {
   id: number;
@@ -13,14 +13,7 @@ type ReqDetail = {
   description: string | null;
   status: "waiting" | "confirmed" | "in_progress" | "rejected" | "completed";
   apartment_id: number;
-  complex?: {
-    name?: string;
-    building?: {
-      address?: string;
-      description?: string;
-      apartment?: { number?: string | null; floor_number?: number };
-    };
-  };
+  complex?: { name?: string; building?: { address?: string; description?: string; apartment?: { number?: string | null; floor_number?: number } } };
   maintenance_department?: { id: number; name: string };
   maintenance_company?: { id: number; name: string };
   user?: { id: number; name?: string; email?: string; phone?: string };
@@ -44,32 +37,25 @@ const statusLabel = (s: ReqDetail["status"]) =>
 
 export default function MaintenanceRequestDetailPage() {
   const params = useParams();
-  const { toast } = useToast();
   const [request, setRequest] = useState<ReqDetail | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [assigning, setAssigning] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<string>("");
 
   const fetchRequest = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem("token");
       if (!token) throw new Error("لم يتم العثور على التوكن");
 
       const [reqRes, compRes] = await Promise.all([
-        fetch(`/api/dashboard/complex-admin/maintenance-requests/${params.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`/api/dashboard/complex-admin/maintenance-companies?per_page=100&page=1`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        fetch(`/api/dashboard/complex-admin/maintenance-requests/${params.id}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/dashboard/complex-admin/maintenance-companies?per_page=100&page=1`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
-      if (!reqRes.ok) {
-        throw new Error(`فشل في جلب تفاصيل طلب الصيانة (${reqRes.status})`);
-      }
-      if (!compRes.ok) {
-        throw new Error(`فشل في جلب قائمة الشركات (${compRes.status})`);
-      }
+      if (!reqRes.ok) throw new Error(`فشل في جلب تفاصيل الطلب (${reqRes.status})`);
+      if (!compRes.ok) throw new Error(`فشل في جلب قائمة الشركات (${compRes.status})`);
 
       const reqData = (await reqRes.json())?.data ?? null;
       const compData: Company[] = (await compRes.json())?.data?.MaintenanceCompanies ?? [];
@@ -77,11 +63,7 @@ export default function MaintenanceRequestDetailPage() {
       setCompanies(compData);
     } catch (err: any) {
       console.error(err);
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: err?.message || "حدث خطأ في جلب البيانات"
-      });
+      toast.error(err?.message || "حدث خطأ في جلب البيانات");
     } finally {
       setLoading(false);
     }
@@ -93,26 +75,19 @@ export default function MaintenanceRequestDetailPage() {
 
   const handleAssignAndConfirm = async () => {
     if (!request || !selectedCompany) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "يجب اختيار شركة الصيانة"
-      });
+      toast.error("يجب اختيار شركة الصيانة");
       return;
     }
+
     const token = localStorage.getItem("token");
     if (!token) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "لم يتم العثور على التوكن"
-      });
+      toast.error("لم يتم العثور على التوكن");
       return;
     }
 
     try {
+      setAssigning(true);
       const company = companies.find(c => String(c.id) === selectedCompany);
-      // Optimistic UI: عرض الشركة + الحالة
       setRequest({ ...request, maintenance_company: company, status: "confirmed" });
 
       // Assign الشركة
@@ -126,36 +101,25 @@ export default function MaintenanceRequestDetailPage() {
       });
 
       if (!res.ok) {
-        // Reset the optimistic update if the request fails
-        setRequest(prevRequest => ({ ...prevRequest!, maintenance_company: undefined, status: "waiting" }));
+        setRequest(prev => ({ ...prev!, maintenance_company: undefined, status: "waiting" }));
         throw new Error(`فشل في تعيين الشركة (${res.status})`);
       }
 
-      // Update the status
       const statusRes = await fetch(`/api/dashboard/complex-admin/maintenance-requests/${request.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: "confirmed" }),
       });
 
-      if (!statusRes.ok) {
-        throw new Error(`فشل في تحديث الحالة (${statusRes.status})`);
-      }
+      if (!statusRes.ok) throw new Error(`فشل في تحديث الحالة (${statusRes.status})`);
 
-      toast({
-        title: "نجاح",
-        description: "تم تعيين الشركة بنجاح"
-      });
-
+      toast.success("تم تعيين الشركة بنجاح");
     } catch (err: any) {
       console.error(err);
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: err?.message || "حدث خطأ في تعيين الشركة"
-      });
-      // Refresh data to ensure UI is in sync with server
+      toast.error(err?.message || "حدث خطأ في تعيين الشركة");
       fetchRequest();
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -163,11 +127,12 @@ export default function MaintenanceRequestDetailPage() {
   if (!request) return <p className="text-center py-10">لم يتم العثور على الطلب</p>;
 
   return (
-    <div className="p-6 font-arabic" dir="rtl">
-      <Card className="bg-white shadow-sm">
+    <div className="p-6 font-arabic dark:bg-gray-900 dark:text-gray-200 min-h-screen" dir="rtl">
+      <Card className="bg-white dark:bg-gray-800 shadow-md rounded-lg">
         <CardHeader className="p-6 pb-4">
-          <CardTitle className="text-lg font-semibold text-gray-900">تفاصيل طلب الصيانة</CardTitle>
+          <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">تفاصيل طلب الصيانة</CardTitle>
         </CardHeader>
+
         <CardContent className="p-6 pt-0 space-y-4">
           <div>
             <p className="font-semibold">العنوان:</p>
@@ -184,24 +149,23 @@ export default function MaintenanceRequestDetailPage() {
             <span
               className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
                 request.status === "confirmed" || request.status === "completed"
-                  ? "bg-green-50 text-green-700 border-green-300"
+                  ? "bg-green-50 text-green-700 border-green-300 dark:bg-green-800 dark:text-green-300 dark:border-green-600"
                   : request.status === "rejected"
-                  ? "bg-red-50 text-red-700 border-red-300"
-                  : "bg-yellow-50 text-yellow-700 border-yellow-300"
+                  ? "bg-red-50 text-red-700 border-red-300 dark:bg-red-800 dark:text-red-300 dark:border-red-600"
+                  : "bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-800 dark:text-yellow-300 dark:border-yellow-600"
               }`}
             >
               {statusLabel(request.status)}
             </span>
           </div>
 
-          {/* Assign company + confirm if waiting */}
           {request.status === "waiting" && (
             <div className="flex items-center gap-2">
               <Select value={selectedCompany} onValueChange={setSelectedCompany} dir="rtl">
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-[200px] dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
                   <SelectValue placeholder="اختر شركة" />
                 </SelectTrigger>
-                <SelectContent dir="rtl">
+                <SelectContent dir="rtl" className="dark:bg-gray-700 dark:text-gray-200">
                   {companies.map(c => (
                     <SelectItem key={c.id} value={String(c.id)}>
                       {c.name}
@@ -209,8 +173,12 @@ export default function MaintenanceRequestDetailPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button onClick={handleAssignAndConfirm} disabled={!selectedCompany}>
-                تخصيص الشركة وتأكيد
+              <Button
+                onClick={handleAssignAndConfirm}
+                disabled={!selectedCompany || assigning}
+                className="dark:bg-purple-700 dark:text-white dark:hover:bg-purple-600"
+              >
+                {assigning ? "جارٍ المعالجة..." : "تخصيص الشركة وتأكيد"}
               </Button>
             </div>
           )}
@@ -229,12 +197,8 @@ export default function MaintenanceRequestDetailPage() {
             <p className="font-semibold">المجمع / المبنى / الشقة:</p>
             <p>
               {request.complex?.name ? request.complex.name + " / " : ""}
-              {request.complex?.building?.address
-                ? request.complex.building.address + " / "
-                : ""}
-              {request.complex?.building?.apartment?.number
-                ? "شقة " + request.complex.building.apartment.number
-                : ""}
+              {request.complex?.building?.address ? request.complex.building.address + " / " : ""}
+              {request.complex?.building?.apartment?.number ? "شقة " + request.complex.building.apartment.number : ""}
             </p>
           </div>
 

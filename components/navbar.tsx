@@ -66,7 +66,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, sidebarWidth }: Na
 
   return (
     <nav
-      className="fixed top-0 left-0 z-50 bg-white border-b border-gray-200 font-arabic shadow-sm transition-all duration-300"
+      className="fixed top-0 left-0 z-50 bg-background border-b border-border font-arabic shadow-sm transition-all duration-300"
       style={{ right: `${sidebarOpen ? sidebarWidth : 64}px` }}
     >
       <div className="flex items-center justify-between h-[73px] px-4">
@@ -76,7 +76,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, sidebarWidth }: Na
             variant="ghost"
             size="icon"
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-primary-500 hover:bg-primary-50 w-10 h-10 flex-shrink-0"
+            className="text-primary hover:bg-accent w-10 h-10 flex-shrink-0"
           >
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </Button>
@@ -85,10 +85,10 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, sidebarWidth }: Na
         {/* Center - Search Bar */}
         <div className="flex-grow mx-6 max-w-lg">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               placeholder="ابحث في لوحة التحكم..."
-              className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-lg text-right bg-gray-50 focus:bg-white transition-colors"
+              className="pl-10 pr-4 py-2.5 w-full text-right bg-muted/50 hover:bg-muted/80 focus:bg-background transition-colors"
               dir="rtl"
             />
           </div>
@@ -102,26 +102,39 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, sidebarWidth }: Na
 
           <DropdownMenu dir="rtl">
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-auto p-0 flex items-center gap-3 min-w-0 hover:bg-transparent">
-                <div className="flex flex-col min-w-0 text-left">
-                  <h3 className="font-semibold text-gray-900 text-sm truncate">{displayName}</h3>
-                  <p className="text-xs text-gray-500 truncate">{displayEmail}</p>
+              <Button 
+                variant="ghost" 
+                className="h-auto p-0 flex items-center gap-3 min-w-0 hover:bg-transparent"
+              >
+                <div className="flex flex-col min-w-0 text-right">
+                  <h3 className="font-semibold text-foreground text-sm truncate">{displayName}</h3>
+                  <p className="text-xs text-muted-foreground truncate">{displayEmail}</p>
                 </div>
                 {/* Avatar with initials */}
-                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-primary-100 text-primary-700 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-primary/10 text-primary flex items-center justify-center transition-colors">
                   <span className="text-sm font-bold">{initials}</span>
                 </div>
               </Button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent className="w-56 font-arabic" align="start">
+            <DropdownMenuContent 
+              className="w-56 font-arabic" 
+              align="start"
+              sideOffset={8}
+            >
               <DropdownMenuItem asChild>
-                <Link href="/profile/edit" className="cursor-pointer ">
+                <Link 
+                  href="/profile/edit" 
+                  className="cursor-pointer flex items-center"
+                >
                   تعديل الحساب
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
+              <DropdownMenuItem 
+                onClick={handleLogout} 
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
                 تسجيل الخروج
               </DropdownMenuItem>
             </DropdownMenuContent>

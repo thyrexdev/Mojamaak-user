@@ -1,430 +1,698 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/components/ui/use-toast";
-import { Building2, Plus, Trash2 } from "lucide-react";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import {
+  Building2,
+  Plus,
+  Trash2,
+  Save,
+  ArrowLeft,
+  Loader2,
+  Home,
+} from "lucide-react";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.mojamaak.com";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://api.mojamaak.com";
 
-type Apt = {
-  id?: number;                 // present for existing apts
+// === Schemas ===
+const buildingSchema = z.object({
+  address: z.string().min(1, "العنوان مطلوب"),
+  description: z.string().min(1, "الوصف مطلوب"),
+  building_date: z.string().optional(),
+  status_active: z.boolean(),
+});
+
+type BuildingFormData = z.infer<typeof buildingSchema>;
+
+type ApartmentData = {
+  id: number;
   floor_number: string;
   number: string;
-  residency_date: string;
+  residency_date?: string;
   price: string;
   listing_type: "sale" | "rent";
   is_available: boolean;
-  _markedForDelete?: boolean;  // local flag (existing apts only)
-  _isNew?: boolean;            // local flag (new apts to create)
 };
 
 export default function EditBuildingPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const buildingId = useMemo(() => Number(params?.id), [params?.id]);
-  const { toast } = useToast();
+  const buildingId = Number(params?.id);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [apartments, setApartments] = useState<ApartmentData[]>([]);
+  const [adding, setAdding] = useState(false);
 
-  // multilingual
-  const [address, setAddress] = useState<{ ar: string; en: string; ku: string }>({
-    ar: "",
-    en: "",
-    ku: "",
+  const form = useForm<BuildingFormData>({
+    resolver: zodResolver(buildingSchema),
+    defaultValues: {
+      address: "",
+      description: "",
+      building_date: "",
+      status_active: true,
+    },
   });
-  const [description, setDescription] = useState<{ ar: string; en: string; ku: string }>({
-    ar: "",
-    en: "",
-    ku: "",
-  });
 
-  // other building fields used in your add/update requests
-  const [statusActive, setStatusActive] = useState(true);
-  const [floorNumber, setFloorNumber] = useState<string>(""); // optional (you sent in add)
-  const [buildingDate, setBuildingDate] = useState<string>(""); // yyyy-mm-dd
-
-  const [apartments, setApartments] = useState<Apt[]>([]);
-
-  // ---- fetch current building (GET /buildings/:id) ----
+  // Fetch building
   useEffect(() => {
-    const run = async () => {
+    const fetchBuilding = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token) {
-          toast({
-            variant: "destructive",
-            title: "خطأ",
-            description: "لم يتم العثور على رمز الدخول",
-          });
-          return;
-        }
-
-        if (!buildingId) {
-          toast({
-            variant: "destructive",
-            title: "خطأ",
-            description: "معرف المبنى غير صالح",
-          });
-          return;
-        }
+        if (!token) throw new Error("لا يوجد توكن");
 
         const res = await fetch(
           `${API_BASE_URL}/api/dashboard/complex-admin/buildings/${buildingId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
         );
 
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || "فشل في تحميل بيانات المبنى");
-        }
-
         const json = await res.json();
+        if (!res.ok) throw new Error(json.message);
 
-        // try common shapes (your list used json.data.building or data?.building? adapt here)
-        const b =
-          json?.data?.building ??
-          json?.data ??
-          json;
+        const b = json.data;
 
-        // Get the Arabic text or fallback to default server strings
-        const serverAddress = b?.translations?.ar?.address ?? b?.address ?? "";
-        const serverDescription = b?.translations?.ar?.description ?? b?.description ?? "";
+        setApartments(
+          (b.apartments || []).map((a: any) => ({
+            id: a.id,
+            floor_number: String(a.floor_number),
+            number: String(a.number),
+            residency_date: a.residency_date
+              ? String(a.residency_date).slice(0, 10)
+              : "",
+            price: String(a.price),
+            listing_type: a.listing_type,
+            is_available: Boolean(Number(a.is_available)),
+          }))
+        );
 
-        // Set the same value for all languages
-        setAddress({
-          ar: serverAddress,
-          en: serverAddress,
-          ku: serverAddress,
+        form.reset({
+          address: b.translations?.ar?.address ?? b.address ?? "",
+          description: b.translations?.ar?.description ?? b.description ?? "",
+          building_date: b.building_date
+            ? String(b.building_date).slice(0, 10)
+            : "",
+          status_active: String(b.status) === "active",
         });
-
-        setDescription({
-          ar: serverDescription,
-          en: serverDescription,
-          ku: serverDescription,
-        });        // optional fields – keep empty if backend doesn’t send them
-        setStatusActive(String(b?.status ?? "active") === "active");
-        setFloorNumber(String(b?.floor_number ?? ""));
-        if (b?.building_date) {
-          // normalize to YYYY-MM-DD
-          setBuildingDate(String(b.building_date).slice(0, 10));
-        }
-
-        const apts: Apt[] = Array.isArray(b?.apartments)
-          ? b.apartments.map((a: any) => ({
-              id: a.id,
-              floor_number: String(a.floor_number ?? ""),
-              number: String(a.number ?? ""),
-              residency_date: a.residency_date ? String(a.residency_date).slice(0, 10) : "",
-              price: String(a.price ?? ""),
-              listing_type: (a.listing_type as "sale" | "rent") ?? "sale",
-              is_available: Boolean(Number(a.is_available ?? 1)),
-            }))
-          : [];
-
-        setApartments(apts);
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "خطأ",
-          description: error instanceof Error ? error.message : "حدث خطأ في تحميل بيانات المبنى"
-        });
+      } catch (err: any) {
+        toast.error(err.message || "فشل تحميل المبنى");
       } finally {
         setLoading(false);
       }
     };
-    run();
-  }, [buildingId]);
+    if (buildingId) fetchBuilding();
+  }, [buildingId, form]);
 
-  // ---- handlers ----
-  const addApartment = () => {
-    setApartments((prev) => [
-      ...prev,
-      {
-        _isNew: true,
-        floor_number: "",
-        number: "",
-        residency_date: "",
-        price: "",
-        listing_type: "sale",
-        is_available: true,
-      },
-    ]);
-  };
-
-  const updateApt = (idx: number, field: keyof Apt, value: any) => {
-    setApartments((prev) => {
-      const copy = [...prev];
-      (copy[idx] as any)[field] = value;
-      return copy;
-    });
-  };
-
-  const toggleDeleteApt = (idx: number) => {
-    setApartments((prev) => {
-      const copy = [...prev];
-      // only existing apts can be marked for deletion
-      if (copy[idx].id) {
-        copy[idx]._markedForDelete = !copy[idx]._markedForDelete;
-      } else {
-        // it's a new (unsaved) apt; removing from UI is enough
-        copy.splice(idx, 1);
-      }
-      return copy;
-    });
-  };
-
-  const onCancel = () => router.push("/buildings");
-
-  // ---- save (POST /buildings/:id) form-data like your Postman “update” ----
-  const onSave = async () => {
+  // Save building details
+  const onSave = async (data: BuildingFormData) => {
     try {
       setSaving(true);
       const token = localStorage.getItem("token");
-      if (!token) throw new Error("No token");
+      if (!token) throw new Error("لا يوجد توكن");
 
       const fd = new FormData();
-
-      // translations (your postman shows address[en|ar|ku], description[en|ar|ku])
-      fd.append("address[ar]", address.ar);
-      fd.append("address[en]", address.en);
-      fd.append("address[ku]", address.ku);
-
-      fd.append("description[ar]", description.ar);
-      fd.append("description[en]", description.en);
-      fd.append("description[ku]", description.ku);
-
-      // optional building fields you sent in add:
-      if (buildingDate) fd.append("building_date", buildingDate);
-      if (floorNumber) fd.append("floor_number", floorNumber);
-      fd.append("apartment_number", String(apartments.length));
-      fd.append("status", statusActive ? "active" : "inactive");
-
-      // new apartments only (backend “update” sample typically uses
-      //   - apartments[...] to add new ones
-      //   - delete_apartments[] to remove existing ones)
-      let newIdx = 0;
-      apartments.forEach((a) => {
-        if (a._isNew && !a._markedForDelete) {
-          fd.append(`apartments[${newIdx}][floor_number]`, a.floor_number);
-          fd.append(`apartments[${newIdx}][number]`, a.number);
-          fd.append(`apartments[${newIdx}][price]`, a.price);
-          fd.append(`apartments[${newIdx}][listing_type]`, a.listing_type);
-          fd.append(`apartments[${newIdx}][is_available]`, a.is_available ? "1" : "0");
-          fd.append(`apartments[${newIdx}][residency_date]`, a.residency_date || "");
-          newIdx++;
-        }
-      });
-
-      // deletionsi want to delete multi language inputs and leave only one language model (arabic) and in the post req send all languages with the same inputs ar en ku
-      let delIdx = 0;
-      apartments.forEach((a) => {
-        if (a.id && a._markedForDelete) {
-          fd.append(`delete_apartments[${delIdx}]`, String(a.id));
-          delIdx++;
-        }
-      });
+      fd.append("address[ar]", data.address);
+      fd.append("address[en]", data.address);
+      fd.append("address[ku]", data.address);
+      fd.append("description[ar]", data.description);
+      fd.append("description[en]", data.description);
+      fd.append("description[ku]", data.description);
+      fd.append("building_date", data.building_date || "");
+      fd.append("status_active", data.status_active ? "1" : "0");
 
       const res = await fetch(
         `${API_BASE_URL}/api/dashboard/complex-admin/buildings/${buildingId}`,
         {
-          method: "POST", // your Postman “update” uses POST (form-data)
+          method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: fd,
         }
       );
+      if (!res.ok) throw new Error("فشل الحفظ");
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "فشل في تحديث المبنى");
-      }
-
-      toast({
-        title: "نجاح",
-        description: "تم تحديث المبنى بنجاح"
-      });
-      router.push("/buildings");
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: error instanceof Error ? error.message : "حدث خطأ أثناء تحديث المبنى"
-      });
+      toast.success("تم حفظ تفاصيل المبنى");
+    } catch (err: any) {
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <div className="p-6 font-arabic" dir="rtl">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Building2 className="w-6 h-6 text-gray-800" />
-          <h1 className="text-2xl font-bold text-gray-900">تعديل المبنى</h1>
-        </div>
+  // Delete apartment
+  const deleteApartment = async (id: number) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("لا يوجد توكن");
+
+      const fd = new FormData();
+      fd.append("delete_apartments[0]", String(id));
+
+      const res = await fetch(
+        `${API_BASE_URL}/api/dashboard/complex-admin/buildings/${buildingId}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        }
+      );
+      if (!res.ok) throw new Error("فشل الحذف");
+
+      setApartments((prev) => prev.filter((a) => a.id !== id));
+      toast.success("تم حذف الشقة");
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  // Add apartment
+  const addApartment = async (apt: Omit<ApartmentData, "id">) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("لا يوجد توكن");
+
+      const fd = new FormData();
+      fd.append("apartments[0][floor_number]", apt.floor_number);
+      fd.append("apartments[0][number]", apt.number);
+      fd.append("apartments[0][price]", apt.price);
+      fd.append("apartments[0][listing_type]", apt.listing_type);
+      fd.append("apartments[0][is_available]", apt.is_available ? "1" : "0");
+      fd.append("apartments[0][residency_date]", apt.residency_date || "");
+
+      const res = await fetch(
+        `${API_BASE_URL}/api/dashboard/complex-admin/buildings/${buildingId}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message);
+
+      setApartments((prev) => [...prev, json.data.apartments.at(-1)]);
+      toast.success("تم إضافة الشقة");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  // Edit apartment
+  const editApartment = async (id: number, apt: Omit<ApartmentData, "id">) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("لا يوجد توكن");
+
+      const fd = new FormData();
+      fd.append(`apartments[0][id]`, String(id));
+      fd.append(`apartments[0][floor_number]`, apt.floor_number);
+      fd.append(`apartments[0][number]`, apt.number);
+      fd.append(`apartments[0][price]`, apt.price);
+      fd.append(`apartments[0][listing_type]`, apt.listing_type);
+      fd.append(`apartments[0][is_available]`, apt.is_available ? "1" : "0");
+      fd.append(`apartments[0][residency_date]`, apt.residency_date || "");
+
+      const res = await fetch(
+        `${API_BASE_URL}/api/dashboard/complex-admin/buildings/${buildingId}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        }
+      );
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message);
+
+      // update local state
+      setApartments((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, ...apt } : a))
+      );
+      toast.success("تم تعديل الشقة");
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
+    );
+  }
 
-      <Card className="bg-white shadow-sm max-w-4xl mx-auto">
-        <CardContent className="p-6">
-          {loading ? (
-            <p className="text-center">جارٍ التحميل…</p>
-          ) : (
-            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-              {/* Address */}
-              <div className="space-y-2">
-                <Label>
-                  العنوان<span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  dir="rtl"
-                  value={address.ar}
-                  onChange={(e) => setAddress({ ar: e.target.value, en: e.target.value, ku: e.target.value })}
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      <div className="container mx-auto p-6 max-w-6xl font-arabic" dir="rtl">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex gap-2 items-center">
+            <Building2 className="w-6 h-6 text-blue-500" />
+            تعديل المبنى
+          </h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/buildings")}
+          >
+            <ArrowLeft className="w-4 h-4 ml-2" /> رجوع
+          </Button>
+        </div>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
+            <Card className="bg-white dark:bg-gray-800 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-xl">تفاصيل المبنى</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>العنوان</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="اكتب العنوان" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-
-              {/* Description */}
-              <div className="space-y-2">
-                <Label>
-                  الوصف<span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  dir="rtl"
-                  value={description.ar}
-                  onChange={(e) => setDescription({ ar: e.target.value, en: e.target.value, ku: e.target.value })}
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>الوصف</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="اكتب الوصف" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* optional building fields */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>تاريخ المبنى</Label>
-                  <Input
-                    type="date"
-                    value={buildingDate}
-                    onChange={(e) => setBuildingDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>عدد الطوابق (اختياري)</Label>
-                  <Input
-                    type="number"
-                    value={floorNumber}
-                    onChange={(e) => setFloorNumber(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2 flex items-end gap-3">
-                  <div className="flex items-center gap-2">
-                    <Label className="mb-0">حالة المبنى</Label>
-                    <Switch checked={statusActive} onCheckedChange={setStatusActive} />
-                    <span className="text-sm text-gray-600">{statusActive ? "نشط" : "غير نشط"}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Apartments */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-semibold text-lg">الشقق</h2>
-                  <Button type="button" variant="ghost" onClick={addApartment}>
-                    <Plus className="w-4 h-4 mr-1" /> إضافة شقة
-                  </Button>
-                </div>
-
-                {apartments.length === 0 && (
-                  <p className="text-sm text-gray-500">لا توجد شقق حالياً.</p>
-                )}
-
-                {apartments.map((apt, idx) => (
+            {/* Apartments */}
+            <Card className="bg-white dark:bg-gray-800 shadow-lg">
+              <CardHeader className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Home className="w-5 h-5 text-orange-500" />
+                  الشقق ({apartments.length})
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAdding(true)}
+                >
+                  <Plus className="w-4 h-4 ml-1" /> إضافة شقة
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {apartments.map((apt) => (
                   <div
-                    key={`${apt.id ?? "new"}-${idx}`}
-                    className={`grid grid-cols-2 md:grid-cols-6 gap-3 border p-4 rounded-md ${
-                      apt._markedForDelete ? "opacity-50" : ""
-                    }`}
+                    key={apt.id}
+                    className="relative rounded-lg border p-4 bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
                   >
-                    <Input
-                      placeholder="الطابق"
-                      type="number"
-                      value={apt.floor_number}
-                      onChange={(e) => updateApt(idx, "floor_number", e.target.value)}
-                      disabled={apt._markedForDelete}
-                    />
-                    <Input
-                      placeholder="رقم الشقة"
-                      value={apt.number}
-                      onChange={(e) => updateApt(idx, "number", e.target.value)}
-                      disabled={apt._markedForDelete}
-                    />
-                    <Input
-                      placeholder="تاريخ السكن"
-                      type="date"
-                      value={apt.residency_date}
-                      onChange={(e) => updateApt(idx, "residency_date", e.target.value)}
-                      disabled={apt._markedForDelete}
-                    />
-                    <Input
-                      placeholder="السعر"
-                      type="number"
-                      value={apt.price}
-                      onChange={(e) => updateApt(idx, "price", e.target.value)}
-                      disabled={apt._markedForDelete}
-                    />
-                    <Input
-                      placeholder="sale / rent"
-                      value={apt.listing_type}
-                      onChange={(e) =>
-                        updateApt(idx, "listing_type", e.target.value as "sale" | "rent")
-                      }
-                      disabled={apt._markedForDelete}
-                    />
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">متاح</span>
-                        <Switch
-                          checked={apt.is_available}
-                          onCheckedChange={(v) => updateApt(idx, "is_available", v)}
-                          disabled={apt._markedForDelete}
-                        />
+                    <div className="flex justify-between">
+                      <div>
+                        <p>
+                          <Badge>#{apt.number}</Badge> دور {apt.floor_number}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                          {apt.price} |{" "}
+                          {apt.listing_type === "sale" ? "بيع" : "إيجار"} |{" "}
+                          {apt.residency_date || "—"}
+                          {apt.is_available ? (
+                            <Badge className="mr-2 bg-green-100 text-green-800">
+                              متاحة
+                            </Badge>
+                          ) : (
+                            <Badge className="mr-2 bg-yellow-100 text-yellow-800">
+                              محجوزة
+                            </Badge>
+                          )}
+                        </p>
                       </div>
+                      <div className="flex gap-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              تعديل
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent dir="rtl">
+                            <DialogHeader>
+                              <DialogTitle>تعديل الشقة</DialogTitle>
+                            </DialogHeader>
+                            <EditApartmentForm
+                              apartment={apt}
+                              onSave={(updated) =>
+                                editApartment(apt.id, updated)
+                              }
+                            />
+                          </DialogContent>
+                        </Dialog>
 
-                      <Button
-                        type="button"
-                        variant={apt._markedForDelete ? "outline" : "destructive"}
-                        size="icon"
-                        title={apt.id ? "وضع/إلغاء علامة الحذف" : "حذف من القائمة"}
-                        onClick={() => toggleDeleteApt(idx)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              <Trash2 className="w-4 h-4 ml-1" /> حذف
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent dir="rtl">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                هل أنت متأكد من حذف هذه الشقة؟
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteApartment(apt.id)}
+                              >
+                                تأكيد
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
-
-                    {apt._markedForDelete && apt.id && (
-                      <div className="col-span-2 md:col-span-6 text-xs text-red-600">
-                        ستتم إزالة هذه الشقة عند الحفظ.
-                      </div>
-                    )}
                   </div>
                 ))}
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* actions */}
-              <div className="flex justify-end gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={onCancel}>
-                  إلغاء
-                </Button>
-                <Button type="submit" onClick={onSave} disabled={saving} className="bg-primary-500 text-white">
-                  {saving ? "جارٍ الحفظ…" : "حفظ التعديلات"}
-                </Button>
-              </div>
-            </form>
-          )}
-        </CardContent>
-      </Card>
+            <div className="flex justify-end">
+              <Button disabled={saving}>
+                {saving && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
+                <Save className="w-4 h-4 ml-2" />
+                حفظ التغييرات
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
+
+      {/* Add Apartment Modal */}
+      <Dialog open={adding} onOpenChange={setAdding}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>إضافة شقة</DialogTitle>
+          </DialogHeader>
+          <AddApartmentForm onSave={addApartment} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdding(false)}>
+              إلغاء
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+// === Add Apartment Form ===
+function AddApartmentForm({
+  onSave,
+}: {
+  onSave: (apt: Omit<ApartmentData, "id">) => void;
+}) {
+  const form = useForm<Omit<ApartmentData, "id">>({
+    defaultValues: {
+      floor_number: "",
+      number: "",
+      price: "",
+      listing_type: "sale",
+      is_available: true,
+      residency_date: "",
+    },
+  });
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSave)} className="space-y-4 pt-4">
+        <FormField
+          control={form.control}
+          name="floor_number"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>رقم الطابق</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="مثال: 15" />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="number"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>رقم الشقة</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="مثال: A01" />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="residency_date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>تاريخ السكن</FormLabel>
+              <FormControl>
+                <Input type="date" {...field} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="price"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>السعر</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="مثال: 3535.00" />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="listing_type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>نوع الإعلان</FormLabel>
+              <FormControl>
+                <select
+                  {...field}
+                  className="w-full rounded-md border px-3 py-2 dark:bg-gray-800"
+                >
+                  <option value="sale">بيع</option>
+                  <option value="rent">إيجار</option>
+                </select>
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        {/* بدل checkbox بخانة اختيار */}
+        <FormField
+          control={form.control}
+          name="is_available"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>الحالة</FormLabel>
+              <FormControl>
+                <select
+                  value={field.value ? "1" : "0"}
+                  onChange={(e) => field.onChange(e.target.value === "1")}
+                  className="w-full rounded-md border px-3 py-2 dark:bg-gray-800"
+                >
+                  <option value="1">متاحة</option>
+                  <option value="0">محجوزة</option>
+                </select>
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <div className="flex justify-end">
+          <Button type="submit">تأكيد الإضافة</Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+// === Edit Apartment Form ===
+function EditApartmentForm({
+  apartment,
+  onSave,
+}: {
+  apartment: ApartmentData;
+  onSave: (apt: Omit<ApartmentData, "id">) => void;
+}) {
+  const form = useForm<Omit<ApartmentData, "id">>({
+    defaultValues: {
+      floor_number: apartment.floor_number,
+      number: apartment.number,
+      price: apartment.price,
+      listing_type: apartment.listing_type,
+      is_available: apartment.is_available,
+      residency_date: apartment.residency_date || "",
+    },
+  });
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSave)} className="space-y-4 pt-4">
+        <FormField
+          control={form.control}
+          name="floor_number"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>رقم الطابق</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="number"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>رقم الشقة</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="residency_date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>تاريخ السكن</FormLabel>
+              <FormControl>
+                <Input type="date" {...field} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="price"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>السعر</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="listing_type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>نوع الإعلان</FormLabel>
+              <FormControl>
+                <select
+                  {...field}
+                  className="w-full rounded-md border px-3 py-2 dark:bg-gray-800"
+                >
+                  <option value="sale">بيع</option>
+                  <option value="rent">إيجار</option>
+                </select>
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        {/* هنا برضه select بدل checkbox */}
+        <FormField
+          control={form.control}
+          name="is_available"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>الحالة</FormLabel>
+              <FormControl>
+                <select
+                  value={field.value ? "1" : "0"}
+                  onChange={(e) => field.onChange(e.target.value === "1")}
+                  className="w-full rounded-md border px-3 py-2 dark:bg-gray-800"
+                >
+                  <option value="1">متاحة</option>
+                  <option value="0">محجوزة</option>
+                </select>
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <div className="flex justify-end">
+          <Button type="submit">تأكيد التعديل</Button>
+        </div>
+      </form>
+    </Form>
   );
 }

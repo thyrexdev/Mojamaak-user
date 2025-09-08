@@ -1,72 +1,61 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function MaintenanceRequestsPage() {
-  const { id } = useParams()
-  const { toast } = useToast()
-  const [requests, setRequests] = useState<any[]>([])
-  const [meta, setMeta] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
+  const { id } = useParams();
+  const [requests, setRequests] = useState<any[]>([]);
+  const [meta, setMeta] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [btnLoading, setBtnLoading] = useState(false);
+  const [page, setPage] = useState(1);
 
   const fetchRequests = async (page: number) => {
     try {
-      setLoading(true)
-      const token = localStorage.getItem("token")
-      if (!token) {
-        toast({
-          variant: "destructive",
-          title: "خطأ",
-          description: "لم يتم العثور على رمز الدخول"
-        })
-        return
-      }
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("لم يتم العثور على رمز الدخول");
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/complex-admin/users/${id}/maintenance-requests?page=${page}`,
         { headers: { Authorization: `Bearer ${token}` } }
-      )
+      );
 
-      if (!res.ok) {
-        toast({
-          variant: "destructive",
-          title: "خطأ",
-          description: "فشل في تحميل طلبات الصيانة"
-        })
-        return
-      }
+      if (!res.ok) throw new Error("فشل في تحميل طلبات الصيانة");
 
-      const json = await res.json()
-      setRequests(json.data.maintenance_requests)
-      setMeta(json.data.meta)
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "حدث خطأ غير متوقع أثناء تحميل طلبات الصيانة"
-      })
+      const json = await res.json();
+      setRequests(json.data.maintenance_requests);
+      setMeta(json.data.meta);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "حدث خطأ غير متوقع أثناء تحميل طلبات الصيانة");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    if (id) fetchRequests(page)
-  }, [id, page])
+    if (id) fetchRequests(page);
+  }, [id, page]);
 
-  if (loading) return <div className="p-6">جاري التحميل...</div>
+  const handlePageChange = (newPage: number) => {
+    setBtnLoading(true);
+    setPage(newPage);
+    setBtnLoading(false);
+  };
+
+  if (loading) return <div className="p-6 text-center text-gray-500 dark:text-gray-400">جاري التحميل...</div>;
 
   return (
-    <div className="p-6 font-arabic" dir="rtl">
-      <Card className="bg-white shadow-sm">
+    <div className="p-6 font-arabic dark:bg-gray-900 dark:text-gray-200 min-h-screen" dir="rtl">
+      <Card className="bg-white dark:bg-gray-800 shadow-md rounded-lg">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-900">
+          <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             طلبات الصيانة للمستخدم #{id}
           </CardTitle>
         </CardHeader>
@@ -74,21 +63,25 @@ export default function MaintenanceRequestsPage() {
         <CardContent>
           {requests.length > 0 ? (
             <>
-              <Table>
+              <Table className="dark:divide-gray-700">
                 <TableHeader>
-                  <TableRow className="bg-gray-50 text-sm">
-                    <TableHead className="text-right text-gray-700">العنوان</TableHead>
-                    <TableHead className="text-right text-gray-700">الحالة</TableHead>
-                    <TableHead className="text-right text-gray-700">الوحدة</TableHead>
-                    <TableHead className="text-right text-gray-700">المبنى</TableHead>
-                    <TableHead className="text-right text-gray-700">القسم</TableHead>
-                    <TableHead className="text-right text-gray-700">الشركة</TableHead>
-                    <TableHead className="text-right text-gray-700">تاريخ الإنشاء</TableHead>
+                  <TableRow className="bg-gray-50 text-sm dark:bg-gray-700">
+                    <TableHead className="text-right text-gray-700 dark:text-gray-200">العنوان</TableHead>
+                    <TableHead className="text-right text-gray-700 dark:text-gray-200">الحالة</TableHead>
+                    <TableHead className="text-right text-gray-700 dark:text-gray-200">الوحدة</TableHead>
+                    <TableHead className="text-right text-gray-700 dark:text-gray-200">المبنى</TableHead>
+                    <TableHead className="text-right text-gray-700 dark:text-gray-200">القسم</TableHead>
+                    <TableHead className="text-right text-gray-700 dark:text-gray-200">الشركة</TableHead>
+                    <TableHead className="text-right text-gray-700 dark:text-gray-200">تاريخ الإنشاء</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {requests.map((req) => (
-                    <TableRow key={req.id}>
+                    <TableRow
+                      key={req.id}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                    >
                       <TableCell className="text-right">{req.title}</TableCell>
                       <TableCell className="text-right">
                         {req.status === "pending" && "🟡 قيد الانتظار"}
@@ -102,31 +95,29 @@ export default function MaintenanceRequestsPage() {
                       <TableCell className="text-right">{req.complex?.building?.address}</TableCell>
                       <TableCell className="text-right">{req.maintenance_department?.name}</TableCell>
                       <TableCell className="text-right">{req.maintenance_company?.name}</TableCell>
-                      <TableCell className="text-right">
-                        {new Date(req.created_at).toLocaleDateString("ar-EG")}
-                      </TableCell>
+                      <TableCell className="text-right">{new Date(req.created_at).toLocaleDateString("ar-EG")}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
 
               {meta && (
-                <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+                <div className="flex items-center justify-between mt-4 text-sm text-gray-600 dark:text-gray-400">
                   <span>الصفحة {meta.current_page} من {meta.total_pages}</span>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={!meta.prev_page_url}
+                      onClick={() => handlePageChange(Math.max(1, page - 1))}
+                      disabled={!meta.prev_page_url || btnLoading}
                     >
                       السابق
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setPage((p) => p + 1)}
-                      disabled={!meta.next_page_url}
+                      onClick={() => handlePageChange(page + 1)}
+                      disabled={!meta.next_page_url || btnLoading}
                     >
                       التالي
                     </Button>
@@ -135,10 +126,10 @@ export default function MaintenanceRequestsPage() {
               )}
             </>
           ) : (
-            <p className="text-gray-500">لا توجد طلبات صيانة لهذا المستخدم.</p>
+            <p className="text-gray-500 dark:text-gray-400">لا توجد طلبات صيانة لهذا المستخدم.</p>
           )}
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
