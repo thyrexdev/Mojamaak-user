@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,7 +22,9 @@ type Req = {
   description: string | null;
   status: "waiting" | "confirmed" | "in_progress" | "rejected" | "completed";
   created_at: string;
-  complex?: { building?: { apartment?: { number?: string | null } | null } | null } | null;
+  complex?: {
+    building?: { apartment?: { number?: string | null } | null } | null;
+  } | null;
   maintenance_department?: { id: number; name: string } | null;
   maintenance_company?: { id: number; name: string } | null;
 };
@@ -51,9 +60,12 @@ export default function MaintenanceRequestsPage() {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("لم يتم العثور على التوكن");
 
-        const res = await fetch("/api/dashboard/complex-admin/maintenance-requests?per_page=10&page=1", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(
+          "/api/dashboard/complex-admin/maintenance-requests?per_page=10&page=1",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         if (!res.ok) {
           throw new Error(`فشل في جلب طلبات الصيانة (${res.status})`);
@@ -76,14 +88,22 @@ export default function MaintenanceRequestsPage() {
     router.push(`/maintenance-requests/${reqId}`);
   };
 
-  const filteredRequests = requests.filter((req) =>
-    req.title.toLowerCase().includes(search.toLowerCase()) ||
-    req.maintenance_department?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    req.maintenance_company?.name?.toLowerCase().includes(search.toLowerCase())
+  const filteredRequests = requests.filter(
+    (req) =>
+      req.title.toLowerCase().includes(search.toLowerCase()) ||
+      req.maintenance_department?.name
+        ?.toLowerCase()
+        .includes(search.toLowerCase()) ||
+      req.maintenance_company?.name
+        ?.toLowerCase()
+        .includes(search.toLowerCase())
   );
 
   return (
-    <div className="p-6 font-arabic dark:bg-gray-900 dark:text-gray-200 min-h-screen" dir="rtl">
+    <div
+      className="p-6 font-arabic dark:bg-gray-900 dark:text-gray-200 min-h-screen"
+      dir="rtl"
+    >
       <Card className="bg-white dark:bg-gray-800 shadow-md rounded-lg">
         <CardHeader className="flex flex-row items-center justify-between p-6 pb-4">
           <div>
@@ -119,6 +139,10 @@ export default function MaintenanceRequestsPage() {
 
           {loading ? (
             <p className="text-center py-10">جارٍ التحميل...</p>
+          ) : filteredRequests.length === 0 ? (
+            <p className="text-center py-10 text-gray-500 dark:text-gray-400">
+              لا توجد طلبات صيانة حاليا
+            </p>
           ) : (
             <Table className="dark:text-gray-200">
               <TableHeader>
@@ -137,7 +161,9 @@ export default function MaintenanceRequestsPage() {
               <TableBody>
                 {filteredRequests.map((req, index) => {
                   const apt = req?.complex?.building?.apartment?.number ?? "-";
-                  const created = req?.created_at ? new Date(req.created_at).toISOString().slice(0, 10) : "-";
+                  const created = req?.created_at
+                    ? new Date(req.created_at).toISOString().slice(0, 10)
+                    : "-";
 
                   return (
                     <TableRow
@@ -145,20 +171,30 @@ export default function MaintenanceRequestsPage() {
                       className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
                       onClick={() => handleRowClick(req.id)}
                     >
-                      <TableCell className="text-center font-semibold">{index + 1}</TableCell>
-                      <TableCell className="text-right">{req.maintenance_department?.name ?? "-"}</TableCell>
+                      <TableCell className="text-center font-semibold">
+                        {index + 1}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {req.maintenance_department?.name ?? "-"}
+                      </TableCell>
                       <TableCell className="text-right">{req.title}</TableCell>
-                      <TableCell className="text-right">{req.description || "—"}</TableCell>
+                      <TableCell className="text-right">
+                        {req.description || "—"}
+                      </TableCell>
                       <TableCell className="text-center">{apt}</TableCell>
                       <TableCell className="text-center">{created}</TableCell>
                       <TableCell className="text-center">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-medium border ${statusBadge(req.status)}`}
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium border ${statusBadge(
+                            req.status
+                          )}`}
                         >
                           {statusLabel(req.status)}
                         </span>
                       </TableCell>
-                      <TableCell className="text-center">{req.maintenance_company?.name ?? "—"}</TableCell>
+                      <TableCell className="text-center">
+                        {req.maintenance_company?.name ?? "—"}
+                      </TableCell>
                     </TableRow>
                   );
                 })}

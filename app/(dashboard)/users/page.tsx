@@ -29,11 +29,18 @@ export default function UsersPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      if (res.status === 404) {
+        // مفيش مستخدمين
+        setUsers([]);
+        setMeta(null);
+        return;
+      }
+
       if (!res.ok) throw new Error("فشل في تحميل قائمة المستخدمين");
 
       const json = await res.json();
-      setUsers(json.data.users);
-      setMeta(json.data.meta);
+      setUsers(json.data.users ?? []);
+      setMeta(json.data.meta ?? null);
     } catch (err: any) {
       console.error(err);
       toast.error(err?.message || "حدث خطأ أثناء تحميل المستخدمين");
@@ -77,49 +84,55 @@ export default function UsersPage() {
             </div>
           </div>
 
-          <Table className="dark:divide-gray-700">
-            <TableHeader>
-              <TableRow className="bg-gray-50 text-sm dark:bg-gray-700">
-                <TableHead className="text-right text-gray-700 dark:text-gray-200">الاسم</TableHead>
-                <TableHead className="text-right text-gray-700 dark:text-gray-200">البريد الإلكتروني</TableHead>
-                <TableHead className="text-right text-gray-700 dark:text-gray-200">رقم الهاتف</TableHead>
-                <TableHead className="text-right text-gray-700 dark:text-gray-200">الوحدات</TableHead>
-                <TableHead className="text-center text-gray-700 dark:text-gray-200">الإجراءات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow
-                  key={user.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                  onClick={() => router.push(`${pathname}/${user.id}`)}
-                >
-                  <TableCell className="text-right">{user.name}</TableCell>
-                  <TableCell className="text-right">{user.email}</TableCell>
-                  <TableCell className="text-right">{user.phone}</TableCell>
-                  <TableCell className="text-right">
-                    {user.apartments?.map((apt: any) => (
-                      <div key={apt.id}>
-                        {apt.number} - {apt.building.address}
-                      </div>
-                    ))}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex justify-center gap-2">
-                      <Button variant="ghost" size="icon" disabled={actionLoading}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-red-500" disabled={actionLoading}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {users.length === 0 ? (
+            <div className="text-center py-10 text-gray-500 dark:text-gray-400">
+              لا يوجد مستخدمين حالياً
+            </div>
+          ) : (
+            <Table className="dark:divide-gray-700">
+              <TableHeader>
+                <TableRow className="bg-gray-50 text-sm dark:bg-gray-700">
+                  <TableHead className="text-right text-gray-700 dark:text-gray-200">الاسم</TableHead>
+                  <TableHead className="text-right text-gray-700 dark:text-gray-200">البريد الإلكتروني</TableHead>
+                  <TableHead className="text-right text-gray-700 dark:text-gray-200">رقم الهاتف</TableHead>
+                  <TableHead className="text-right text-gray-700 dark:text-gray-200">الوحدات</TableHead>
+                  <TableHead className="text-center text-gray-700 dark:text-gray-200">الإجراءات</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow
+                    key={user.id}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                    onClick={() => router.push(`${pathname}/${user.id}`)}
+                  >
+                    <TableCell className="text-right">{user.name}</TableCell>
+                    <TableCell className="text-right">{user.email}</TableCell>
+                    <TableCell className="text-right">{user.phone}</TableCell>
+                    <TableCell className="text-right">
+                      {user.apartments?.map((apt: any) => (
+                        <div key={apt.id}>
+                          {apt.number} - {apt.building.address}
+                        </div>
+                      ))}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex justify-center gap-2">
+                        <Button variant="ghost" size="icon" disabled={actionLoading}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-red-500" disabled={actionLoading}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
 
-          {meta && (
+          {meta && users.length > 0 && (
             <div className="flex items-center justify-between mt-4 text-sm text-gray-600 dark:text-gray-400">
               <span>الصفحة {meta.current_page} من {meta.total_pages}</span>
               <div className="flex gap-2">

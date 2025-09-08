@@ -1,4 +1,4 @@
-import type { Config } from "tailwindcss"
+import type { Config } from "tailwindcss";
 
 const config: Config = {
   darkMode: ["class"],
@@ -63,10 +63,9 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
-      fontFamily: {
-  arabic: ["Tajawal", "sans-serif"],
-
-      },
+fontFamily: {
+  arabic: ['Shamel', 'sans-serif'],
+},
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -89,6 +88,6 @@ const config: Config = {
     },
   },
   plugins: [require("tailwindcss-animate")],
-}
+};
 
-export default config
+export default config;
